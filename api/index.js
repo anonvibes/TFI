@@ -14,11 +14,11 @@ const REGION = env("WATCH_REGION", "IN");
 const LANG = env("META_LANGUAGE", "en-US");
 const DUB_LANGS = env("DUB_SOURCE_LANGS", "ta|ml|kn");
 const DUB_MIN_VOTES = env("DUB_MIN_VOTES", "3");
-const EN_DUB_MIN_VOTES = env("EN_DUB_MIN_VOTES", "100");
+const EN_DUB_MIN_VOTES = env("EN_DUB_MIN_VOTES", "20");
 const HINDI_MIN_VOTES = env("HINDI_MIN_VOTES", "0");
 const MIN_RUNTIME = Number(env("MIN_RUNTIME", "60"));
 const DUB_SERIES_MIN_VOTES = env("DUB_SERIES_MIN_VOTES", "0");
-const EN_SERIES_MIN_VOTES = env("EN_SERIES_MIN_VOTES", "100");
+const EN_SERIES_MIN_VOTES = env("EN_SERIES_MIN_VOTES", "20");
 const HINDI_SERIES_MIN_VOTES = env("HINDI_SERIES_MIN_VOTES", "0");
 const SERIES_MAX_EPISODES = Number(env("SERIES_MAX_EPISODES", "40")); // a season longer than this is a TV serial / daily soap, not a web series
 const SERIES_DAYS = 180; // shows with an episode in the last N days get their latest season's start date looked up
@@ -29,6 +29,10 @@ const NEWS = env("NEWS_CHECK", "on") !== "off"; // also use OTT release news (Sa
 const SACNILK_URL = env("NEWS_SACNILK_URL", "https://www.sacnilk.com/ott-movie-releases?type=recent&time_period=all&page={page}");
 const TELUGU123_URL = env("NEWS_123TELUGU_URL", "https://www.123telugu.com/videos/ott");
 const MOBILES91_URL = env("NEWS_91MOBILES_URL", "https://raw.githubusercontent.com/anonvibes/tfi-data/main/91mobiles.json"); // written daily by a home server
+// Audio languages of each candidate (JustWatch and Netflix), checked daily by a home server from /candidates.json
+const AUDIO_URL = env("AUDIO_URL", "https://raw.githubusercontent.com/anonvibes/tfi-data/main/audio.json");
+const POOL_DAYS = Number(env("POOL_DAYS", "365")); // dubbed catalogs look this far back to fill up with titles that have Telugu audio
+const POOL_PAGES = 25; // up to 500 candidates per dubbed catalog
 
 const TMDB = env("TMDB_API_BASE", "https://api.themoviedb.org/3"); // overrides are for testing only
 const TMDB4 = env("TMDB_API_BASE4", "https://api.themoviedb.org/4");
@@ -47,52 +51,57 @@ const FALLBACK_PROVIDER_IDS = [8, 175, 119, 2100, 613, 2336, 232, 237, 2792, 309
 const today = () => new Date().toISOString().slice(0, 10);
 const daysAgo = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
 
+// Every title in every catalog has Telugu audio: Telugu originals, plus dubbed titles whose Telugu track is confirmed
+// (JustWatch, Netflix or OTT news) or that no service lists audio languages for yet ("dubbed: true" catalogs).
+// The catalog ids (and the Stremio ids) stay as they were; "key" is the short name used in configured addon links;
+// "oldNames" are earlier TMDB list names, so the lists are renamed in place and keep their links.
 const CATALOGS = {
   "tfi-streaming": {
-    name: "Latest Streaming - TFI",
+    key: "te", name: "Telugu Movies", oldNames: ["Latest Streaming - TFI"],
     about: "Telugu films streaming on Indian OTT, latest arrivals first.",
     langs: () => ["te"], minVotes: () => 0,
   },
   "tfi-dubbed": {
-    name: "Latest Dubbed - TFI",
-    about: "Tamil, Malayalam and Kannada films streaming on Indian OTT (most have Telugu audio), latest arrivals first.",
+    key: "south", name: "Telugu Dubbed: South", oldNames: ["Latest Dubbed - TFI"], dubbed: true,
+    about: "Tamil, Malayalam and Kannada films with Telugu audio, streaming on Indian OTT, latest arrivals first.",
     langs: () => DUB_LANGS.split("|"), minVotes: () => Number(DUB_MIN_VOTES) || 0,
   },
   "tfi-english-dubbed": {
-    name: "Latest English Dubbed - TFI",
-    about: "Well-known English films streaming on Indian OTT (big releases usually have Telugu audio), latest arrivals first.",
+    key: "en", name: "Telugu Dubbed: English", oldNames: ["Latest English Dubbed - TFI"], dubbed: true,
+    about: "English films with Telugu audio, streaming on Indian OTT, latest arrivals first.",
     langs: () => ["en"], minVotes: () => Number(EN_DUB_MIN_VOTES) || 0,
   },
   "hindi-streaming": {
-    name: "Latest Streaming - Hindi",
-    about: "Hindi films streaming on Indian OTT, latest arrivals first.",
+    key: "hi", name: "Telugu Dubbed: Hindi", oldNames: ["Latest Streaming - Hindi"], dubbed: true,
+    about: "Hindi films with Telugu audio, streaming on Indian OTT, latest arrivals first.",
     langs: () => ["hi"], minVotes: () => Number(HINDI_MIN_VOTES) || 0,
   },
 };
 // Web series (TMDB "tv"). Ranked by when the newest series or season started.
 const SERIES = {
   "tfi-series": {
-    name: "Latest Series - TFI",
+    key: "te-tv", name: "Telugu Series", oldNames: ["Latest Series - TFI"],
     about: "Telugu web series streaming on Indian OTT, newest series and seasons first.",
     langs: () => ["te"], minVotes: () => 0,
   },
   "tfi-dubbed-series": {
-    name: "Latest Dubbed Series - TFI",
-    about: "Tamil, Malayalam and Kannada web series streaming on Indian OTT (many have Telugu audio), newest series and seasons first.",
+    key: "south-tv", name: "Telugu Dubbed Series: South", oldNames: ["Latest Dubbed Series - TFI"], dubbed: true,
+    about: "Tamil, Malayalam and Kannada web series with Telugu audio, streaming on Indian OTT, newest series and seasons first.",
     langs: () => DUB_LANGS.split("|"), minVotes: () => Number(DUB_SERIES_MIN_VOTES) || 0,
   },
   "tfi-english-series": {
-    name: "Latest English Series - TFI",
-    about: "Well-known English web series streaming on Indian OTT (big ones usually have Telugu audio), newest series and seasons first.",
+    key: "en-tv", name: "Telugu Dubbed Series: English", oldNames: ["Latest English Series - TFI"], dubbed: true,
+    about: "English web series with Telugu audio, streaming on Indian OTT, newest series and seasons first.",
     langs: () => ["en"], minVotes: () => Number(EN_SERIES_MIN_VOTES) || 0,
   },
   "hindi-series": {
-    name: "Latest Series - Hindi",
-    about: "Hindi web series streaming on Indian OTT, newest series and seasons first.",
+    key: "hi-tv", name: "Telugu Dubbed Series: Hindi", oldNames: ["Latest Series - Hindi"], dubbed: true,
+    about: "Hindi web series with Telugu audio, streaming on Indian OTT, newest series and seasons first.",
     langs: () => ["hi"], minVotes: () => Number(HINDI_SERIES_MIN_VOTES) || 0,
   },
 };
-for (const [defs, media] of [[CATALOGS, "movie"], [SERIES, "tv"]]) for (const def of Object.values(defs)) {
+for (const [defs, media] of [[CATALOGS, "movie"], [SERIES, "tv"]]) for (const [id, def] of Object.entries(defs)) {
+  def.id = id;
   def.media = media;
   def.query = () => ({ with_original_language: def.langs().join("|"), "vote_count.gte": def.minVotes() > 0 ? def.minVotes() : undefined });
 }
@@ -178,14 +187,24 @@ async function getProviderIds() {
 // Latest OTT arrivals for a catalog. Candidates: films TMDB lists as streaming in India, films with a recent
 // Indian "Digital" (OTT) release date on TMDB, and films reported as new on OTT in the news (see lib/news.js).
 // Ranking: the earliest Indian OTT date known (TMDB digital date or news date), otherwise the main release date.
-async function discover(def, skip, count, news = newsMatches()) {
-  if (skip >= 300 || !(DIGITAL_DAYS > 0)) return discoverOtt(def, skip, count);
-  const [ott, digital] = await Promise.all([discoverOtt(def, 0, skip + count), digitalReleases(def)]);
+// Dubbed catalogs take candidates from the last POOL_DAYS and keep only those with Telugu audio (see hasTelugu).
+// The returned array carries .candidates (the count before that check), so the sync can tell a TMDB outage
+// from a normal day.
+async function discover(def, skip, count, news = newsMatches(), audio = null) {
+  if (def.dubbed && !audio) audio = await getAudio();
+  if (def.dubbed && !audio) return Object.assign([], { candidates: 0 });
+  if (!def.dubbed && (skip >= 300 || !(DIGITAL_DAYS > 0))) return discoverOtt(def, skip, count);
+  const [ott, digital] = await Promise.all([
+    def.dubbed ? discoverOtt(def, 0, POOL_PAGES * TMDB_PAGE, daysAgo(POOL_DAYS)) : discoverOtt(def, 0, skip + count),
+    digitalReleases(def)]);
   const inOtt = new Set(ott.map((m) => m.id));
   const newsDate = new Map(news.map((n) => [n.id, n.date]));
+  const newsBy = new Map(news.map((n) => [n.id, n]));
   const seen = new Set();
-  const pool = [...ott, ...digital].filter((m) => m && !seen.has(m.id) && seen.add(m.id));
+  let pool = [...ott, ...digital].filter((m) => m && !seen.has(m.id) && seen.add(m.id));
   for (const n of news) if (!seen.has(n.id)) { seen.add(n.id); pool.push({ id: n.id, viaNews: true }); }
+  const candidates = pool.length;
+  if (def.dubbed) pool = pool.filter((m) => hasTelugu(audio, "movie", m.id, newsBy.get(m.id)));
   const recent = daysAgo(365); // older films keep their main release date, so re-released classics don't jump to the top
   const infos = await mapLimit(pool, CONCURRENCY, (m) =>
     inOtt.has(m.id) && (m.release_date || "") < recent && !newsDate.has(m.id) ? null : filmInfo(m.id));
@@ -200,7 +219,7 @@ async function discover(def, skip, count, news = newsMatches()) {
     return { ...item, release_date: primary, ott_date: ottDate, via_news: !!m.viaNews };
   }).filter(Boolean);
   ranked.sort((a, b) => b.ott_date.localeCompare(a.ott_date) || b.release_date.localeCompare(a.release_date));
-  return ranked.slice(skip, skip + count);
+  return Object.assign(ranked.slice(skip, skip + count), { candidates });
 }
 
 // Main release date, earliest Indian digital (OTT) release date so far, and IMDb id — one TMDB call per film.
@@ -252,8 +271,9 @@ async function digitalReleases(def) {
   }
 }
 
-// What's streaming in India for a catalog, newest first (movies by release date, series by first episode).
-async function ottParams(def) {
+// What's streaming in India for a catalog, newest first (movies by release date, series by first episode),
+// optionally only titles released (or started) on or after `since`.
+async function ottParams(def, since) {
   const common = {
     ...def.query(),
     watch_region: REGION,
@@ -262,18 +282,18 @@ async function ottParams(def) {
     include_adult: false,
     language: LANG,
   };
-  if (def.media === "tv") return { sort_by: "first_air_date.desc", ...common, "first_air_date.lte": today(),
+  if (def.media === "tv") return { sort_by: "first_air_date.desc", ...common, "first_air_date.lte": today(), "first_air_date.gte": since,
     with_type: TV_TYPES, without_genres: TV_SKIP_GENRES, include_null_first_air_dates: false };
-  return { sort_by: "primary_release_date.desc", ...common, "primary_release_date.lte": today(),
+  return { sort_by: "primary_release_date.desc", ...common, "primary_release_date.lte": today(), "primary_release_date.gte": since,
     "with_runtime.gte": MIN_RUNTIME > 0 ? MIN_RUNTIME : undefined };
 }
 
-async function discoverOtt(def, skip, count) {
+async function discoverOtt(def, skip, count, since) {
   const path = `/discover/${def.media}`;
   const firstPage = Math.floor(skip / TMDB_PAGE) + 1;
   const lastPage = Math.min(Math.floor((skip + count - 1) / TMDB_PAGE) + 1, 500);
   if (firstPage > 500) return [];
-  const params = await ottParams(def);
+  const params = await ottParams(def, since);
   const first = await tmdb(path, { ...params, page: firstPage });
   const available = Math.min(first.total_pages || 1, 500);
   const lastFetched = Math.min(available, lastPage);
@@ -296,15 +316,21 @@ async function discoverOtt(def, skip, count) {
 // shows that started in the last year; older shows keep their first-episode date.
 // Series reported as new on OTT in the news are added too (TMDB often misses aha / ETV Win originals). Their news date
 // is used when TMDB has no started season for them yet, or only an older season than the news reports.
-async function discoverSeries(def, skip, count, news = seriesNewsMatches()) {
-  if (skip >= 300) return (await discoverOtt(def, skip, count)).filter((s) => !skipTitle(s));
-  const [newest, airing] = await Promise.all([discoverOtt(def, 0, skip + count), recentlyAiring(def)]);
+async function discoverSeries(def, skip, count, news = seriesNewsMatches(), audio = null) {
+  if (def.dubbed && !audio) audio = await getAudio();
+  if (def.dubbed && !audio) return Object.assign([], { candidates: 0 });
+  if (!def.dubbed && skip >= 300) return (await discoverOtt(def, skip, count)).filter((s) => !skipTitle(s));
+  const [newest, airing] = await Promise.all([
+    def.dubbed ? discoverOtt(def, 0, POOL_PAGES * TMDB_PAGE, daysAgo(POOL_DAYS)) : discoverOtt(def, 0, skip + count),
+    recentlyAiring(def)]);
   const airingIds = new Set(airing.map((s) => s.id));
   const newsBy = new Map();
-  for (const n of news) if (!newsBy.has(n.id) || (n.season || 1) > (newsBy.get(n.id).season || 1)) newsBy.set(n.id, n);
+  for (const n of news) if (!newsBy.has(n.id) || (n.season || 1) > (newsBy.get(n.id).season || 1)) newsBy.set(n.id, { ...n, teAudio: n.teAudio || newsBy.get(n.id)?.teAudio });
   const seen = new Set();
-  const pool = [...airing, ...newest].filter((s) => s && !seen.has(s.id) && seen.add(s.id) && !skipTitle(s));
+  let pool = [...airing, ...newest].filter((s) => s && !seen.has(s.id) && seen.add(s.id) && !skipTitle(s));
   for (const id of newsBy.keys()) if (!seen.has(id)) { seen.add(id); pool.push({ id, viaNews: true }); }
+  const candidates = pool.length;
+  if (def.dubbed) pool = pool.filter((s) => hasTelugu(audio, "tv", s.id, newsBy.get(s.id)));
   const recent = daysAgo(365);
   const infos = await mapLimit(pool, CONCURRENCY, (s) =>
     s.viaNews || airingIds.has(s.id) || newsBy.has(s.id) || (s.first_air_date || "") >= recent ? showInfo(s.id) : null);
@@ -316,9 +342,9 @@ async function discoverSeries(def, skip, count, news = seriesNewsMatches()) {
     const n = newsBy.get(s.id);
     const useNews = n && (!info?.seasonDate || (n.season || 1) > info.season);
     return { ...(info?.item || s), ott_date: useNews ? n.date : info?.seasonDate || first, season: useNews ? n.season || 1 : info?.season || 1, via_news: !!s.viaNews };
-  }).filter(Boolean);
+  }).filter((s) => s && !(def.dubbed && s.ott_date < daysAgo(POOL_DAYS)));
   ranked.sort((a, b) => b.ott_date.localeCompare(a.ott_date) || (b.first_air_date || "").localeCompare(a.first_air_date || ""));
-  return ranked.slice(skip, skip + count);
+  return Object.assign(ranked.slice(skip, skip + count), { candidates });
 }
 
 // Shows on Indian OTT with an episode in the last SERIES_DAYS days (up to 200, most popular first).
@@ -388,6 +414,51 @@ async function getSeriesNews(force = false) {
   return seriesNewsCache;
 }
 
+// ---------- Telugu audio ----------
+// audio.json: { updated, movie: { "<tmdb id>": { te: true | false | null, ... } }, tv: { ... } }. te is true when
+// JustWatch or Netflix lists Telugu audio, false when they list the audio languages without Telugu, and null when
+// no service lists them (mostly Sun NXT). It's written outside this app, so only `te` is read from it.
+let audioCache = null;
+async function getAudio() {
+  if (audioCache && Date.now() - audioCache.at < 600e3) return audioCache.data;
+  try {
+    const r = await fetch(AUDIO_URL, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(10000) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = await r.json();
+    if (!j || typeof j.movie !== "object" || typeof j.tv !== "object") throw new Error("unexpected format");
+    audioCache = { at: Date.now(), data: { movie: j.movie, tv: j.tv, updated: String(j.updated || "").slice(0, 10) } };
+    return audioCache.data;
+  } catch (e) {
+    console.error("audio check unavailable:", e.message);
+    return audioCache?.data || null;
+  }
+}
+
+// Belongs in a dubbed catalog: the news reports Telugu audio, or the audio check found Telugu or found no audio
+// languages listed anywhere. Titles the check hasn't seen yet wait for its next run.
+function hasTelugu(audio, media, id, news) {
+  if (news?.teAudio) return true;
+  const a = audio?.[media]?.[id];
+  return !!a && typeof a === "object" && a.te !== false;
+}
+
+// Everything the dubbed catalogs could include, before the Telugu-audio check. A home server checks these daily
+// (JustWatch and Netflix list audio languages) and publishes the results as audio.json.
+async function candidates(media) {
+  const isTv = media === "tv";
+  const news = await (isTv ? getSeriesNews : getNews)().catch(() => ({ matched: [] }));
+  const out = new Map();
+  const add = (id, title, original, date, lang) => {
+    if (Number.isInteger(id) && !out.has(id)) out.set(id, { id, title: title || original || "", original_title: original || null, year: Number(String(date || "").slice(0, 4)) || null, lang: lang || null });
+  };
+  for (const def of Object.values(isTv ? SERIES : CATALOGS).filter((d) => d.dubbed)) {
+    const [main, extra] = await Promise.all([discoverOtt(def, 0, POOL_PAGES * TMDB_PAGE, daysAgo(POOL_DAYS)), isTv ? recentlyAiring(def) : digitalReleases(def)]);
+    for (const m of [...main, ...extra]) if (m && !(isTv && skipTitle(m))) add(m.id, m.title || m.name, m.original_title || m.original_name, m.release_date || m.first_air_date, m.original_language);
+    for (const n of news.matched || []) if (def.langs().includes(n.lang)) add(n.id, n.tmdbTitle, null, n.date, n.lang);
+  }
+  return { generated_at: new Date().toISOString(), media, count: out.size, items: [...out.values()] };
+}
+
 // ---------- List sync ----------
 function accountIdFromToken(token) {
   if (env("TMDB_ACCOUNT_ID")) return env("TMDB_ACCOUNT_ID");
@@ -414,13 +485,18 @@ async function syncLists(media = "movie") {
   const count = isTv ? "series" : "movies";
   let news = { matched: [], unsure: [], notFound: [], stats: {} };
   try { news = await (isTv ? getSeriesNews : getNews)(true); } catch (e) { news.stats = { error: e.message }; }
+  const audio = await getAudio();
   const report = [];
   for (const def of Object.values(isTv ? SERIES : CATALOGS)) {
-    const ranked = isTv ? await discoverSeries(def, 0, LIST_SIZE, news.matched) : await discover(def, 0, LIST_SIZE, news.matched);
+    let list = mine.find((l) => l.name === def.name) || mine.find((l) => def.oldNames.includes(l.name));
+    if (def.dubbed && !audio) {
+      report.push({ list: def.name, ...(list ? { url: `https://www.themoviedb.org/list/${list.id}` } : {}), note: "kept as it was: the Telugu audio check (audio.json) couldn't be read" });
+      continue;
+    }
+    const ranked = isTv ? await discoverSeries(def, 0, LIST_SIZE, news.matched, audio) : await discover(def, 0, LIST_SIZE, news.matched, audio);
     const wanted = ranked.map((m) => m.id);
     const fromNews = ranked.filter((m) => m.via_news).map((m) => m.title);
     const description = `${def.about} Updated automatically every day by TFI Movies. Last update: ${today()}.`;
-    let list = mine.find((l) => l.name === def.name);
     let current = [];
     if (!list) {
       // TMDB refused the full request for the series lists on 2026-11-05 ("Validation failed"), so fall back to
@@ -436,8 +512,10 @@ async function syncLists(media = "movie") {
       current = await allPages(`/list/${list.id}`, USER_TOKEN);
     }
     // A list that suddenly shrinks means TMDB returned too little (as when its streaming data goes missing):
-    // keep the current list until TMDB recovers rather than emptying it.
-    if (current.length >= 50 && wanted.length < current.length * 0.8) {
+    // keep the current list until TMDB recovers rather than emptying it. Dubbed lists shrink when titles without
+    // Telugu audio drop out, so for them it's the candidate count (before the audio check) that has to hold up.
+    const tooFew = def.dubbed ? ranked.candidates < LIST_SIZE : wanted.length < current.length * 0.8;
+    if (current.length >= 50 && tooFew) {
       report.push({ list: def.name, url: `https://www.themoviedb.org/list/${list.id}`, [count]: current.length, added: 0, removed: 0, reordered: false, ...(isTv ? {} : { from_news: [] }), note: `kept as it was: TMDB gave only ${wanted.length} ${isTv ? "series" : "films"}` });
       continue;
     }
@@ -469,9 +547,10 @@ async function syncLists(media = "movie") {
       if (notAdded.length) { await sleep(2000); notAdded = await add(notAdded); } // out of order until tomorrow's rebuild
     }
     let note = notAdded.length ? `TMDB refused ${notAdded.length} ${count}: ${notAdded.join(", ")}` : undefined;
-    try { await tmdb4("PUT", `/list/${list.id}`, USER_TOKEN, { description, public: true, sort_by: "original_order.asc" }); }
+    try { await tmdb4("PUT", `/list/${list.id}`, USER_TOKEN, { name: def.name, description, public: true, sort_by: "original_order.asc" }); }
     catch (e) { note = [note, `list settings not updated: ${e.message}`].filter(Boolean).join("; "); }
     report.push({ list: def.name, url: `https://www.themoviedb.org/list/${list.id}`, [count]: wanted.length, added, removed, reordered: !unchanged,
+      ...(def.dubbed ? { telugu_audio: { candidates: ranked.candidates, audio_checked: audio.updated } } : {}),
       ...(isTv ? { top: ranked.slice(0, 5).map((s) => `${s.name} S${s.season} (${s.ott_date})`), from_news: ranked.filter((s) => s.via_news).map((s) => s.name) } : { from_news: fromNews }), ...(note ? { note } : {}) });
   }
   if (isTv) {
@@ -494,7 +573,7 @@ async function findList(def) {
     const account = accountIdFromToken(USER_TOKEN);
     listIndex = { at: Date.now(), lists: await allPages(`/account/${account}/lists`, USER_TOKEN) };
   }
-  return listIndex.lists.find((l) => l.name === def.name) || null;
+  return listIndex.lists.find((l) => l.name === def.name) || listIndex.lists.find((l) => def.oldNames.includes(l.name)) || null;
 }
 async function listItems(def) {
   const list = await findList(def);
@@ -548,21 +627,31 @@ function toPreview(m, imdb, type = "movie") {
   };
 }
 
-function manifest(base) {
+// ---------- Choosing catalogs ----------
+// A configured addon link names its catalogs in the first path segment: /te,south,te-tv/manifest.json.
+// The plain /manifest.json has all of them.
+const ALL_DEFS = [...Object.values(CATALOGS), ...Object.values(SERIES)];
+const ALL_KEYS = ALL_DEFS.map((d) => d.key);
+function parseConfig(segment) {
+  const keys = decodeSeg(segment).split(",").filter(Boolean);
+  return keys.length && keys.every((k) => ALL_KEYS.includes(k)) ? ALL_KEYS.filter((k) => keys.includes(k)) : null;
+}
+const configPath = (keys) => (!keys || keys.length === ALL_KEYS.length ? "" : `/${keys.join(",")}`);
+
+function manifest(base, keys = ALL_KEYS) {
+  const defs = ALL_DEFS.filter((d) => keys.includes(d.key));
+  const types = [...new Set(defs.map((d) => (d.media === "tv" ? "series" : "movie")))];
   return {
     id: "community.tfi.movies",
-    version: "2.5.0",
+    version: "2.6.0",
     name: "TFI Movies",
-    description: "Latest Telugu (TFI) movies and web series, Telugu-dubbed Tamil/Malayalam/Kannada and English titles, and new Hindi movies and series streaming on Indian OTT. Auto-updating, metadata by TMDB.",
+    description: "Movies and web series with Telugu audio, new on Indian OTT: the latest Telugu releases, plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Refreshed every day. Metadata by TMDB.",
     logo: `${base}/tfi-logo.png`,
-    resources: ["catalog", { name: "meta", types: ["movie", "series"], idPrefixes: ["tmdb:"] }],
-    types: ["movie", "series"],
+    resources: ["catalog", { name: "meta", types, idPrefixes: ["tmdb:"] }],
+    types,
     idPrefixes: ["tmdb:"],
-    catalogs: [
-      ...Object.entries(CATALOGS).map(([id, c]) => ({ type: "movie", id, name: c.name, extra: [{ name: "skip" }] })),
-      ...Object.entries(SERIES).map(([id, c]) => ({ type: "series", id, name: c.name, extra: [{ name: "skip" }] })),
-    ],
-    behaviorHints: { configurable: false, configurationRequired: false },
+    catalogs: defs.map((d) => ({ type: d.media === "tv" ? "series" : "movie", id: d.id, name: d.name, extra: [{ name: "skip" }] })),
+    behaviorHints: { configurable: true, configurationRequired: false },
   };
 }
 
@@ -689,17 +778,22 @@ async function landingData() {
 const PLATFORM_NAMES = ["Netflix", "Prime Video", "JioHotstar", "aha", "ZEE5", "SonyLIV", "Sun NXT", "ETV Win"];
 const REPO_URL = "https://github.com/anonvibes/TFI";
 
-function landing(host, base, data) {
-  const manifestUrl = `${base}/manifest.json`;
+// keys: the catalogs ticked in the picker (a configured link's /configure page opens with its own choice)
+function landing(host, base, data, keys = ALL_KEYS) {
+  const cfg = configPath(keys);
+  const manifestUrl = `${base}${cfg}/manifest.json`;
   const webInstall = `https://web.stremio.com/#/addons?addon=${encodeURIComponent(manifestUrl)}`;
+  const short = (d) => d.name.replace(/^Telugu Dubbed(?: Series)?: /, "Dubbed: ").replace(/^Telugu (?:Movies|Series)$/, "Telugu");
+  const toggles = (defs) => Object.values(defs).map((d) => `<label class="tog"><input type="checkbox" value="${esc(d.key)}"${keys.includes(d.key) ? " checked" : ""}><span>${esc(short(d))}</span></label>`).join("");
+  const js = (v) => JSON.stringify(v).replace(/</g, "\\u003c");
   const strip = (title, items) => !items.length ? "" : `<h3>${esc(title)}</h3><div class="row">${items.map((m) => {
     const name = m.title || m.name || "";
     return `<a class="poster" href="https://www.themoviedb.org/${m.media_type === "tv" ? "tv" : "movie"}/${m.id}" target="_blank" rel="noopener" title="${esc(name)}"><img src="${IMG}w185${m.poster_path}" alt="${esc(name)}" loading="lazy" width="120" height="180"><span>${esc(name)}</span></a>`;
   }).join("")}</div>`;
   const cards = (defs) => Object.entries(defs).map(([id, def]) => `<div class="card"><h4>${esc(def.name)}</h4><p>${esc(def.about)}</p>${data.lists[id] ? `<a href="https://www.themoviedb.org/list/${data.lists[id]}" target="_blank" rel="noopener">View the list on TMDB →</a>` : ""}</div>`).join("");
-  const desc = "Free Stremio addon: the latest Telugu movies and web series on Indian OTT, plus Telugu-dubbed, English and Hindi titles. Refreshed every day.";
+  const desc = "Free Stremio addon: movies and web series with Telugu audio, new on Indian OTT. Telugu originals plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Refreshed every day.";
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TFI Movies · Stremio addon for the latest Telugu movies and series on OTT</title>
+<title>TFI Movies · Stremio addon: new movies and series in Telugu</title>
 <meta name="description" content="${esc(desc)}"><meta name="theme-color" content="#0d0618">
 <meta property="og:title" content="TFI Movies"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${esc(base)}/tfi-logo.png"><meta property="og:url" content="${esc(base)}/">
 <link rel="icon" type="image/png" href="/tfi-logo.png">
@@ -731,6 +825,19 @@ h1 em{font-style:normal;background:linear-gradient(90deg,var(--acc),var(--acc2))
 .copy button{border:0;border-left:1px solid var(--line);background:var(--card);color:var(--fg);padding:0 18px;font:600 14px system-ui,sans-serif;cursor:pointer}
 .copy button:hover{background:rgba(255,255,255,.1)}
 .hint{color:var(--mut);font-size:13px;margin:8px 0 0}
+.badge{display:inline-block;font-size:13px;font-weight:600;background:rgba(178,107,255,.18);border:1px solid rgba(178,107,255,.45);border-radius:999px;padding:4px 12px;margin-bottom:14px}
+.pick{margin:0 0 20px;display:grid;gap:8px}
+.picktitle{margin:0 0 2px;font-size:14px;font-weight:600}
+.pickrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.picklab{font-size:12px;color:var(--mut);width:58px;text-transform:uppercase;letter-spacing:.06em}
+.tog input{position:absolute;opacity:0;pointer-events:none}
+.tog span{display:inline-block;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 14px;font-size:14px;cursor:pointer;user-select:none;color:var(--mut);transition:background .12s,border-color .12s}
+.tog input:checked+span{background:rgba(178,107,255,.22);border-color:var(--acc);color:var(--fg)}
+.tog input:checked+span::before{content:"\\2713  "}
+.tog input:focus-visible+span{outline:2px solid var(--acc2);outline-offset:2px}
+#pickmsg{display:none;color:#fca5a5;font-size:13px;margin:0 0 10px}
+.none #pickmsg{display:block}
+.none .ctas .btn,.none .copy{opacity:.4;pointer-events:none}
 section{padding:26px 0}
 h2{font-size:24px;margin:0 0 16px;letter-spacing:-.01em}
 h3{font-size:15px;color:var(--mut);margin:18px 0 10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
@@ -757,7 +864,7 @@ a{color:var(--acc2)}
 footer{border-top:1px solid var(--line);margin-top:24px;padding:24px 0 48px;color:var(--mut);font-size:13px}
 footer p{margin:4px 0}
 @media (max-width:720px){.hero{grid-template-columns:1fr;text-align:center;gap:20px;padding-top:16px}.hero .logo{width:150px;height:150px;margin:0 auto;border-radius:32px}
-  .lead{margin-left:auto;margin-right:auto}.ctas{justify-content:center}.copy{margin:0 auto}}
+  .lead{margin-left:auto;margin-right:auto}.ctas,.pickrow{justify-content:center}.picklab{width:100%;text-align:center}.copy{margin:0 auto}}
 </style></head><body><div class="gridbg"></div>
 <div class="wrap">
 <header><a class="brand" href="/"><img src="/tfi-logo.png" alt="">TFI Movies</a><a class="pill" href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a></header>
@@ -765,11 +872,18 @@ footer p{margin:4px 0}
 <div class="hero">
   <img class="logo" src="/tfi-logo.gif" onerror="this.onerror=null;this.src='/tfi-logo.png'" width="210" height="210" alt="TFI Movies logo">
   <div>
-    <h1>The latest Telugu movies &amp; series, <em>fresh on OTT</em></h1>
-    <p class="lead">A free Stremio addon with 8 catalogs that refresh every day: new Telugu releases, Tamil, Malayalam and Kannada films dubbed in Telugu, big English titles and Hindi picks, all streaming in India.</p>
+    <span class="badge">Telugu audio only</span>
+    <h1>New on OTT, <em>all in Telugu</em></h1>
+    <p class="lead">A free Stremio addon with the latest Telugu movies and web series, plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Every title has a Telugu audio track, confirmed or very likely. Refreshed every day.</p>
+    <div class="pick" id="pick">
+      <p class="picktitle">Choose your catalogs</p>
+      <div class="pickrow"><span class="picklab">Movies</span>${toggles(CATALOGS)}</div>
+      <div class="pickrow"><span class="picklab">Series</span>${toggles(SERIES)}</div>
+    </div>
+    <p id="pickmsg">Pick at least one catalog.</p>
     <div class="ctas">
-      <a class="btn primary" href="stremio://${esc(host)}/manifest.json">Install in Stremio</a>
-      <a class="btn" href="${esc(webInstall)}" target="_blank" rel="noopener">Use Stremio Web</a>
+      <a class="btn primary" id="installbtn" href="stremio://${esc(host)}${esc(cfg)}/manifest.json">Install in Stremio</a>
+      <a class="btn" id="webbtn" href="${esc(webInstall)}" target="_blank" rel="noopener">Use Stremio Web</a>
     </div>
     <div class="copy"><input id="murl" value="${esc(manifestUrl)}" readonly aria-label="Addon link"><button type="button" id="copybtn">Copy</button></div>
     <p class="hint">Button doesn't open Stremio? Copy the link and paste it into the search box on Stremio's Addons page.</p>
@@ -785,14 +899,15 @@ ${data.movies.length || data.series.length ? `<section><h2>New on OTT right now<
 
 <section><h2>How to install</h2><ol class="steps">
   <li><b>Get Stremio.</b> It's free for Windows, Mac, Android, iPhone and Android TV at <a href="https://www.stremio.com/downloads" target="_blank" rel="noopener">stremio.com</a>.</li>
-  <li><b>Press Install in Stremio</b> above, then <b>Install</b> in the window that opens.</li>
+  <li><b>Pick your catalogs and press Install in Stremio</b> above, then <b>Install</b> in the window that opens.</li>
   <li><b>Open Board or Discover.</b> The TFI catalogs show up under Movies and Series.</li>
 </ol></section>
 
 <section><h2>Questions</h2>
 <details><summary>Does TFI Movies play videos?</summary><p>No. It adds catalogs: posters, details, ratings and trailers for what's new on Indian OTT. It doesn't host or link to any video. Watch on the streaming service that has the title.</p></details>
 <details><summary>How fresh are the catalogs?</summary><p>They update every morning (India time) from TMDB's streaming data, plus OTT release news from Sacnilk, 123telugu and 91mobiles, so new arrivals show up even before TMDB catches up.</p></details>
-<details><summary>Do the dubbed catalogs have Telugu audio?</summary><p>Usually, but TMDB doesn't record audio languages, so it's a best guess. Check the language options on the streaming service.</p></details>
+<details><summary>Does every title have Telugu audio?</summary><p>That's the rule. Telugu films and series are in automatically. Every dubbed title is checked each day against the audio languages listed by JustWatch and Netflix, and against OTT release news (Sacnilk, 123telugu). A title goes in when Telugu is listed, or when no service lists its audio languages yet (mostly Sun NXT). Titles whose services list other languages but not Telugu are left out. Found one without Telugu? <a href="${REPO_URL}/issues" target="_blank" rel="noopener">Tell us on GitHub</a>.</p></details>
+<details><summary>Can I hide catalogs I don't want?</summary><p>Yes. Untick them above before you install. Already installed? Open TFI Movies in Stremio's Addons page, press <b>Configure</b>, pick again and install.</p></details>
 <details><summary>Is it free? Can I see how it works?</summary><p>Yes, it's free and needs no account. The code is open source on <a href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a>.</p></details>
 </section>
 
@@ -802,6 +917,17 @@ ${data.movies.length || data.series.length ? `<section><h2>New on OTT right now<
 </footer>
 </div>
 <script>
+var KEYS = ${js(ALL_KEYS)}, BASE = ${js(base)}, HOST = ${js(host)};
+function update() {
+  var on = KEYS.filter(function (k) { var i = document.querySelector('#pick input[value="' + k + '"]'); return i && i.checked; });
+  var cfg = on.length === KEYS.length ? "" : "/" + on.join(",");
+  var m = BASE + cfg + "/manifest.json";
+  document.getElementById("murl").value = m;
+  document.getElementById("installbtn").href = "stremio://" + HOST + cfg + "/manifest.json";
+  document.getElementById("webbtn").href = "https://web.stremio.com/#/addons?addon=" + encodeURIComponent(m);
+  document.body.classList.toggle("none", !on.length);
+}
+document.getElementById("pick").addEventListener("change", update);
 document.getElementById("copybtn").addEventListener("click", async function () {
   var b = this, i = document.getElementById("murl");
   try { await navigator.clipboard.writeText(i.value); } catch (e) { i.select(); document.execCommand("copy"); }
@@ -851,11 +977,20 @@ export default async function handler(req, res) {
   try {
     if (req.method === "OPTIONS") return send(res, 204, "", 0);
     if (req.method !== "GET" && req.method !== "HEAD") return send(res, 405, { error: "method not allowed" }, 0);
+    // Configured addon links: /<keys>/manifest.json, /<keys>/catalog/..., /<keys>/meta/..., /<keys>/configure
+    let keys = null;
+    const cm = path.match(/^\/([a-z0-9,%-]+)(\/(?:manifest\.json|configure|catalog\/.+|meta\/.+))$/i);
+    if (cm && (keys = parseConfig(cm[1]))) path = cm[2];
     if (path === "/" || path === "/configure") {
       const data = await Promise.race([landingData().catch(() => null), sleep(4000).then(() => null)]);
-      return send(res, 200, landing(host, base, data || { lists: {}, movies: [], series: [] }), data ? 3600 : 300, "text/html; charset=utf-8");
+      return send(res, 200, landing(host, base, data || { lists: {}, movies: [], series: [] }, keys || ALL_KEYS), data ? 3600 : 300, "text/html; charset=utf-8");
     }
-    if (path === "/manifest.json") return send(res, 200, manifest(base), 3600);
+    if (path === "/manifest.json") return send(res, 200, manifest(base, keys || ALL_KEYS), 3600);
+    // What the home server's daily Telugu-audio check looks up
+    if (path === "/candidates.json") {
+      const media = url.searchParams.get("type") === "tv" ? "tv" : "movie";
+      return send(res, 200, await candidates(media), 10800);
+    }
     if (path === "/logo.png" || path === "/tfi-logo.png") return send(res, 200, Buffer.from(LOGO_PNG_BASE64, "base64"), 604800, "image/png");
 
     // Daily list sync: /sync for movies, /sync-series for series (Vercel cron calls both; you can also open them in a browser)
