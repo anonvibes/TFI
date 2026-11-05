@@ -16,7 +16,7 @@ Every title has Telugu audio, which is the point of the addon. Telugu films and 
 - **Left out:** the services list the audio languages and Telugu isn't one of them. A provider's list that leaves out the title's own language counts as incomplete, so it can confirm Telugu but not rule it out.
 - **Kept, unconfirmed:** no service lists the audio languages (mostly Sun NXT), so it gets the benefit of the doubt.
 
-A home server does the lookups (hundreds of pages a day, too slow for Vercel's 60-second limit) from [`/candidates.json`](https://tfi-movies.vercel.app/candidates.json) and publishes the results as `audio.json` in [anonvibes/tfi-data](https://github.com/anonvibes/tfi-data). Titles without confirmed Telugu are looked up again every week, since dubs are often added later. A title the check hasn't seen yet waits for its next run.
+A home server does the lookups (hundreds of pages on the first run, too slow for one Vercel function) from [`/candidates.json`](https://tfi-movies.vercel.app/candidates.json) and publishes the results as `audio.json` in [anonvibes/tfi-data](https://github.com/anonvibes/tfi-data). Titles without confirmed Telugu are looked up again every week, since dubs are often added later. A title the check hasn't seen yet waits for its next run.
 
 ## Movie lists
 
