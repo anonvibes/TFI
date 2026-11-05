@@ -13,7 +13,7 @@ TFI Movies only adds catalogs (posters, details, ratings and trailers). It doesn
 Every title has Telugu audio, which is the point of the addon. Telugu films and series are in automatically. Each dubbed title is checked daily:
 
 - **Confirmed:** [JustWatch](https://www.justwatch.com/in) lists Telugu audio for one of its Indian streaming offers, Netflix's title page lists Telugu, it's on ETV Win (Telugu only), or OTT release news says so (Sacnilk's audio languages, 123telugu's "Telugu Dub").
-- **Left out:** the services list the audio languages and Telugu isn't one of them. A provider's list that leaves out the title's own language counts as incomplete, so it can confirm Telugu but not rule it out.
+- **Left out:** the services list the audio languages and Telugu isn't one of them. That beats a news report of Telugu audio. A provider's list that leaves out the title's own language counts as incomplete, so it can confirm Telugu but not rule it out.
 - **Kept, unconfirmed:** no service lists the audio languages (mostly Sun NXT), so it gets the benefit of the doubt.
 
 A home server does the lookups (hundreds of pages on the first run, too slow for one Vercel function) from [`/candidates.json`](https://tfi-movies.vercel.app/candidates.json) and publishes the results as `audio.json` in [anonvibes/tfi-data](https://github.com/anonvibes/tfi-data). Titles without confirmed Telugu are looked up again every week, since dubs are often added later. A title the check hasn't seen yet waits for its next run.
