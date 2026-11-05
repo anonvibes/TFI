@@ -434,12 +434,14 @@ async function getAudio() {
   }
 }
 
-// Belongs in a dubbed catalog: the news reports Telugu audio, or the audio check found Telugu or found no audio
-// languages listed anywhere. Titles the check hasn't seen yet wait for its next run.
+// Belongs in a dubbed catalog: the audio check found Telugu or found no audio languages listed anywhere, or the
+// news reports Telugu audio. The streaming service's own list beats the news (Sacnilk gave Telugu for a Netflix
+// film whose Netflix page lists Malayalam only, 2026-11-06). Titles neither has covered yet wait for the next check.
 function hasTelugu(audio, media, id, news) {
-  if (news?.teAudio) return true;
   const a = audio?.[media]?.[id];
-  return !!a && typeof a === "object" && a.te !== false;
+  const checked = !!a && typeof a === "object";
+  if (checked && a.te === false) return false;
+  return checked || !!news?.teAudio;
 }
 
 // Everything the dubbed catalogs could include, before the Telugu-audio check. A home server checks these daily
