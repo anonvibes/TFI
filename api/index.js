@@ -513,8 +513,9 @@ async function syncLists(media = "movie") {
     }
     // A list that suddenly shrinks means TMDB returned too little (as when its streaming data goes missing):
     // keep the current list until TMDB recovers rather than emptying it. Dubbed lists shrink when titles without
-    // Telugu audio drop out, so for them it's the candidate count (before the audio check) that has to hold up.
-    const tooFew = def.dubbed ? ranked.candidates < LIST_SIZE : wanted.length < current.length * 0.8;
+    // Telugu audio drop out, so for them it's the candidate count (before the audio check) that has to hold up
+    // (there were only 91 Hindi films on 2026-11-06, so it can't be a full list's worth).
+    const tooFew = def.dubbed ? ranked.candidates < 40 : wanted.length < current.length * 0.8;
     if (current.length >= 50 && tooFew) {
       report.push({ list: def.name, url: `https://www.themoviedb.org/list/${list.id}`, [count]: current.length, added: 0, removed: 0, reordered: false, ...(isTv ? {} : { from_news: [] }), note: `kept as it was: TMDB gave only ${wanted.length} ${isTv ? "series" : "films"}` });
       continue;
