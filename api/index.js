@@ -417,7 +417,8 @@ async function getSeriesNews(force = false) {
 // ---------- Telugu audio ----------
 // audio.json: { updated, movie: { "<tmdb id>": { te: true | false | null, ... } }, tv: { ... } }. te is true when
 // JustWatch or Netflix lists Telugu audio, false when they list the audio languages without Telugu, and null when
-// no service lists them (mostly Sun NXT). It's written outside this app, so only `te` is read from it.
+// no service lists them (mostly Sun NXT); `justwatch: "not found"` marks titles JustWatch doesn't have. It's written
+// outside this app, so only those two fields are read from it.
 let audioCache = null;
 async function getAudio() {
   if (audioCache && Date.now() - audioCache.at < 600e3) return audioCache.data;
@@ -434,13 +435,16 @@ async function getAudio() {
   }
 }
 
-// Belongs in a dubbed catalog: the audio check found Telugu or found no audio languages listed anywhere, or the
-// news reports Telugu audio. The streaming service's own list beats the news (Sacnilk gave Telugu for a Netflix
-// film whose Netflix page lists Malayalam only, 2026-11-06). Titles neither has covered yet wait for the next check.
+// Belongs in a dubbed catalog: the audio check found Telugu, or JustWatch has the title but no service lists its
+// audio languages (mostly Sun NXT), or the news reports Telugu audio. The streaming service's own list beats the
+// news (Sacnilk gave Telugu for a Netflix film whose Netflix page lists Malayalam only, 2026-11-06). Titles JustWatch
+// doesn't know at all (mostly obscure films and stand-up specials) need the news, and so do titles neither has
+// covered yet, until the next check.
 function hasTelugu(audio, media, id, news) {
   const a = audio?.[media]?.[id];
   const checked = !!a && typeof a === "object";
   if (checked && a.te === false) return false;
+  if (checked && a.te !== true && a.justwatch === "not found") return !!news?.teAudio;
   return checked || !!news?.teAudio;
 }
 
@@ -909,7 +913,7 @@ ${data.movies.length || data.series.length ? `<section><h2>New on OTT right now<
 <section><h2>Questions</h2>
 <details><summary>Does TFI Movies play videos?</summary><p>No. It adds catalogs: posters, details, ratings and trailers for what's new on Indian OTT. It doesn't host or link to any video. Watch on the streaming service that has the title.</p></details>
 <details><summary>How fresh are the catalogs?</summary><p>They update every morning (India time) from TMDB's streaming data, plus OTT release news from Sacnilk, 123telugu and 91mobiles, so new arrivals show up even before TMDB catches up.</p></details>
-<details><summary>Does every title have Telugu audio?</summary><p>That's the rule. Telugu films and series are in automatically. Every dubbed title is checked each day against the audio languages listed by JustWatch and Netflix, and against OTT release news (Sacnilk, 123telugu). A title goes in when Telugu is listed, or when no service lists its audio languages yet (mostly Sun NXT). Titles whose services list other languages but not Telugu are left out. Found one without Telugu? <a href="${REPO_URL}/issues" target="_blank" rel="noopener">Tell us on GitHub</a>.</p></details>
+<details><summary>Does every title have Telugu audio?</summary><p>That's the rule. Telugu films and series are in automatically. Every dubbed title is checked each day against the audio languages listed by JustWatch and Netflix, and against OTT release news (Sacnilk, 123telugu). A title goes in when Telugu is listed, or when JustWatch knows it but no service lists its audio languages yet (mostly Sun NXT). Titles whose services list other languages but not Telugu are left out, and so are titles JustWatch doesn't know at all, unless the news confirms Telugu. Found one without Telugu? <a href="${REPO_URL}/issues" target="_blank" rel="noopener">Tell us on GitHub</a>.</p></details>
 <details><summary>Can I hide catalogs I don't want?</summary><p>Yes. Untick them above before you install. Already installed? Open TFI Movies in Stremio's Addons page, press <b>Configure</b>, pick again and install.</p></details>
 <details><summary>Is it free? Can I see how it works?</summary><p>Yes, it's free and needs no account. The code is open source on <a href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a>.</p></details>
 </section>
