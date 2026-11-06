@@ -4,7 +4,7 @@
 
 A free Stremio addon with movies and web series **in Telugu**, new on Indian OTT: the latest Telugu releases, plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Eight catalogs, refreshed automatically every day, also published as public TMDB lists.
 
-**Install:** open [tfi-movies.vercel.app](https://tfi-movies.vercel.app), pick the catalogs you want and press *Install in Stremio*, or paste `https://tfi-movies.vercel.app/manifest.json` (all catalogs) into the search box on Stremio's Addons page.
+**Install:** open [tfi-movies.vercel.app](https://tfi-movies.vercel.app), pick the catalogs you want (and their order) and press *Install in Stremio*, or paste `https://tfi-movies.vercel.app/manifest.json` (all catalogs) into the search box on Stremio's Addons page.
 
 TFI Movies only adds catalogs (posters, details, ratings and trailers). It doesn't host or link to any video.
 
@@ -46,7 +46,7 @@ Each holds up to 100 series on the same platforms. A series is ranked by when it
 
 ## Stremio addon
 
-The addon shows the same eight catalogs (movies under Movies, series under Series): the first 100 titles in each come straight from the TMDB lists, and scrolling further loads older ones. Pick catalogs on the home page, or name them in the link: `https://tfi-movies.vercel.app/te,south,te-tv/manifest.json` (keys `te`, `south`, `en`, `hi` for movies and `te-tv`, `south-tv`, `en-tv`, `hi-tv` for series). Stremio's *Configure* button opens the picker again. Movies and series use IMDb IDs where they have one, so other Stremio addons (subtitles, for example) work with them as usual.
+The addon shows the same eight catalogs (movies under Movies, series under Series): the first 100 titles in each come straight from the TMDB lists, and scrolling further loads older ones. Pick catalogs and their order on the home page (or start from a preset: Telugu originals, dubbed only, movies only, series only), or name them in the link, in the order Stremio should show them: `https://tfi-movies.vercel.app/te,south,te-tv/manifest.json` (keys `te`, `south`, `en`, `hi` for movies and `te-tv`, `south-tv`, `en-tv`, `hi-tv` for series). Stremio's *Configure* button opens the picker again. Movies and series use IMDb IDs where they have one, so other Stremio addons (subtitles, for example) work with them as usual.
 
 ## Run your own copy
 
