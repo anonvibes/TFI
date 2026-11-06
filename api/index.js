@@ -650,9 +650,9 @@ function manifest(base, keys = ALL_KEYS) {
   const types = [...new Set(defs.map((d) => (d.media === "tv" ? "series" : "movie")))];
   return {
     id: "community.tfi.movies",
-    version: "2.7.0",
+    version: "2.7.1",
     name: "TFI Movies",
-    description: "Movies and web series with Telugu audio, new on Indian OTT: the latest Telugu releases, plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Refreshed every day. Metadata by TMDB.",
+    description: "Movies and web series that most probably have Telugu audio, new on Indian OTT: the latest Telugu releases, plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Whether you get the Telugu track depends on your stream addons and their settings. Refreshed every day. Metadata by TMDB. Made with the help of AI.",
     logo: `${base}/tfi-logo.png`,
     resources: ["catalog", { name: "meta", types, idPrefixes: ["tmdb:"] }],
     types,
@@ -806,7 +806,8 @@ function landing(host, base, data, keys = ALL_KEYS) {
 </label>`;
   };
   const group = (title, defs) => `<div class="group"><h3>${title}</h3><div class="cats">${Object.values(defs).map(card).join("")}</div></div>`;
-  const desc = "Free Stremio addon: movies and web series with Telugu audio, new on Indian OTT. Telugu originals plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Refreshed every day.";
+  const ast = `<sup><a class="ast" href="#note" aria-label="About Telugu audio">*</a></sup>`;
+  const desc = "Free Stremio addon: movies and web series that most probably have Telugu audio, new on Indian OTT. Telugu originals plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Refreshed every day.";
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>TFI Movies · Stremio addon: new movies and series in Telugu</title>
 <meta name="description" content="${esc(desc)}"><meta name="theme-color" content="#0a0712">
@@ -904,6 +905,16 @@ h3{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;c
 .copy{display:flex;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.35);margin-top:14px}
 .copy input{flex:1;min-width:0;background:transparent;border:0;color:var(--mut);padding:9px 12px;font:12px ui-monospace,Consolas,monospace}
 .hint{color:var(--dim);font-size:12px;margin:8px 0 0}
+sup{line-height:0}
+.ast{color:var(--acc2);text-decoration:none;font-weight:700;padding:0 2px}
+.ast:hover{color:var(--fg)}
+.fine{color:var(--dim);font-size:13px;margin:18px 0 0;max-width:580px}
+.callout{display:flex;gap:14px;align-items:flex-start;border:1px solid rgba(251,191,36,.28);background:rgba(251,191,36,.05);border-radius:14px;padding:16px 18px;margin-top:14px;color:var(--mut);font-size:14px;scroll-margin-top:90px}
+.callout p{margin:0}
+.callout b{color:var(--fg)}
+.callout .ic{margin:0;flex:none}
+.ai{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px 16px;margin:0 0 16px;color:var(--mut)}
+.ai b{color:var(--fg)}
 .none .js-install,.none .js-web,.none .js-copy{opacity:.4;pointer-events:none}
 .checks{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .check,.steps li{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:20px}
@@ -953,14 +964,15 @@ footer a{color:var(--mut)}
 <main class="wrap">
 <section class="hero">
   <div>
-    <span class="badge"><span class="dot"></span>Telugu audio only · refreshed daily</span>
-    <h1>New on OTT,<br><em>all in Telugu.</em></h1>
-    <p class="lead">A free Stremio addon with the latest Telugu movies and web series, plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Every title has a Telugu audio track, confirmed or very likely.</p>
+    <span class="badge"><span class="dot"></span><span>Telugu audio only${ast} · refreshed daily</span></span>
+    <h1>New on OTT,<br><em>all in Telugu.</em>${ast}</h1>
+    <p class="lead">A free Stremio addon with the latest Telugu movies and web series, plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Every title most probably has a Telugu audio track.${ast}</p>
     <div class="ctas">
       <a class="btn primary lg js-install" href="${esc(appInstall)}">${icon("M8 3v10M3 8h10")}Install in Stremio</a>
       <a class="btn lg" href="#customize">Customize catalogs</a>
     </div>
     <ul class="stats"><li><b>${ALL_DEFS.length}</b> catalogs</li><li><b>${PLATFORM_NAMES.length}</b> OTT platforms</li><li><b>Daily</b> refresh</li><li><b>Free</b>, no account</li></ul>
+    <p class="fine">* Most probably, not guaranteed. Whether you actually get Telugu audio depends on your stream addons and how they're configured. <a href="#note">More</a></p>
   </div>
   <div class="art"><img src="/tfi-logo.gif" onerror="this.onerror=null;this.src='/tfi-logo.png'" width="290" height="290" alt="TFI Movies logo"></div>
 </section>
@@ -986,13 +998,14 @@ footer a{color:var(--mut)}
 
 <section id="check">
   <p class="eyebrow">Telugu audio only</p>
-  <h2>Every title has a Telugu track</h2>
+  <h2>Every title most probably has a Telugu track${ast}</h2>
   <p class="sub">Telugu films and series are in automatically. Every dubbed title is checked each day against the audio languages JustWatch and Netflix list, and against OTT release news.</p>
   <div class="checks">
     <div class="check"><div class="ic ok">${icon("M3 8.5l3.2 3.2L13 5")}</div><h4>Confirmed</h4><p>JustWatch or Netflix lists Telugu audio, it's on ETV Win, or OTT release news (Sacnilk, 123telugu) says so.</p></div>
     <div class="check"><div class="ic no">${icon("M4 4l8 8M12 4l-8 8")}</div><h4>Left out</h4><p>The services list the audio languages and Telugu isn't one of them, or JustWatch doesn't know the title and no news confirms Telugu.</p></div>
     <div class="check"><div class="ic maybe">${icon("M6 6a2 2 0 1 1 2.8 1.8c-.5.3-.8.7-.8 1.2v.5M8 12h.01")}</div><h4>Kept, unconfirmed</h4><p>JustWatch knows the title but no service lists its audio languages yet (mostly Sun NXT), so it gets the benefit of the doubt.</p></div>
   </div>
+  <div class="callout" id="note"><div class="ic maybe">${icon("M8 4.5v4.5M8 11.5h.01")}</div><p><b>* Most probably, not guaranteed.</b> The check above can be wrong, and a dub isn't always on every service. TFI Movies only lists titles and doesn't provide any streams, so whether you actually get Telugu audio when you play a title depends on your stream addons and how they're configured (for example their language settings and which version of the title they find).</p></div>
 </section>
 
 <section id="install">
@@ -1013,13 +1026,15 @@ footer a{color:var(--mut)}
   <h2>Questions</h2>
   <details><summary>Does TFI Movies play videos?</summary><p>No. It adds catalogs: posters, details, ratings and trailers for what's new on Indian OTT. It doesn't host or link to any video. Watch on the streaming service that has the title.</p></details>
   <details><summary>How fresh are the catalogs?</summary><p>They update every morning (India time) from TMDB's streaming data, plus OTT release news from Sacnilk, 123telugu and 91mobiles, so new arrivals show up even before TMDB catches up.</p></details>
-  <details><summary>Does every title have Telugu audio?</summary><p>That's the rule. See <a href="#check">how the Telugu check works</a>: a title goes in when Telugu is listed, or when JustWatch knows it but no service lists its audio languages yet. Found one without Telugu? <a href="${REPO_URL}/issues" target="_blank" rel="noopener">Tell us on GitHub</a>.</p></details>
+  <details><summary>Does every title have Telugu audio?</summary><p>Most probably, but it isn't guaranteed. See <a href="#check">how the Telugu check works</a>: a title goes in when Telugu is listed, or when JustWatch knows it but no service lists its audio languages yet. Whether you get the Telugu track when you play a title depends on your stream addons and their settings, not on TFI Movies. Found one without Telugu? <a href="${REPO_URL}/issues" target="_blank" rel="noopener">Tell us on GitHub</a>.</p></details>
   <details><summary>Can I hide catalogs or change their order?</summary><p>Yes. Under <a href="#customize">Customize</a>, switch off the ones you don't want and use the arrows to set their order, then install. Already installed? Open TFI Movies on Stremio's Addons page, press <b>Configure</b>, change your choice and install again.</p></details>
+  <details><summary>Was this made with AI?</summary><p>Yes, partly. The code, this page and the rules for the catalogs were written with the help of AI. The catalogs are put together automatically every day, with no person checking each title, so a title, date or audio language can be wrong. Spot a mistake? <a href="${REPO_URL}/issues" target="_blank" rel="noopener">Tell us on GitHub</a>.</p></details>
   <details><summary>Is it free? Can I see how it works?</summary><p>Yes, it's free and needs no account. The code is open source on <a href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a>.</p></details>
 </section>
 </main>
 
 <footer><div class="wrap">
+  <p class="ai"><b>AI disclaimer:</b> TFI Movies was built with the help of AI, and its catalogs are made automatically without a person checking each title. Details, including Telugu audio, can be wrong.</p>
   <p>TFI Movies v${esc(manifest(base).version)} · <a href="${REPO_URL}" target="_blank" rel="noopener">Source on GitHub</a></p>
   <p>Data from <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a>. This product uses the TMDB API but is not endorsed or certified by TMDB. Not affiliated with Stremio or any streaming service.</p>
 </div></footer>
