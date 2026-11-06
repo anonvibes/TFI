@@ -635,22 +635,22 @@ function toPreview(m, imdb, type = "movie") {
 }
 
 // ---------- Choosing catalogs ----------
-// A configured addon link names its catalogs in the first path segment: /te,south,te-tv/manifest.json.
-// The plain /manifest.json has all of them.
+// A configured addon link names its catalogs in the first path segment, in the order Stremio shows them:
+// /te,south,te-tv/manifest.json. The plain /manifest.json has all of them in the default order.
 const ALL_DEFS = [...Object.values(CATALOGS), ...Object.values(SERIES)];
 const ALL_KEYS = ALL_DEFS.map((d) => d.key);
 function parseConfig(segment) {
-  const keys = decodeSeg(segment).split(",").filter(Boolean);
-  return keys.length && keys.every((k) => ALL_KEYS.includes(k)) ? ALL_KEYS.filter((k) => keys.includes(k)) : null;
+  const keys = [...new Set(decodeSeg(segment).split(",").filter(Boolean))];
+  return keys.length && keys.every((k) => ALL_KEYS.includes(k)) ? keys : null;
 }
-const configPath = (keys) => (!keys || keys.length === ALL_KEYS.length ? "" : `/${keys.join(",")}`);
+const configPath = (keys) => (!keys || keys.join(",") === ALL_KEYS.join(",") ? "" : `/${keys.join(",")}`);
 
 function manifest(base, keys = ALL_KEYS) {
-  const defs = ALL_DEFS.filter((d) => keys.includes(d.key));
+  const defs = keys.map((k) => ALL_DEFS.find((d) => d.key === k));
   const types = [...new Set(defs.map((d) => (d.media === "tv" ? "series" : "movie")))];
   return {
     id: "community.tfi.movies",
-    version: "2.6.0",
+    version: "2.7.0",
     name: "TFI Movies",
     description: "Movies and web series with Telugu audio, new on Indian OTT: the latest Telugu releases, plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Refreshed every day. Metadata by TMDB.",
     logo: `${base}/tfi-logo.png`,
@@ -769,177 +769,324 @@ a{color:var(--acc)}</style></head><body>${body}
 <p class="mut">This product uses the TMDB API but is not endorsed or certified by TMDB.</p></body></html>`;
 }
 
-// Landing page extras: TMDB list links and the newest Telugu posters. Best effort: the page also works without them.
+// Landing page extras: TMDB list links. Best effort: the page also works without them.
 async function landingData() {
-  const lists = Object.fromEntries(await Promise.all(Object.entries({ ...CATALOGS, ...SERIES }).map(async ([id, def]) => [id, (await findList(def))?.id])));
-  const newest = async (def) => {
-    const list = await findList(def);
-    if (!list) return [];
-    const d = await tmdb4("GET", `/list/${list.id}?language=${LANG}&page=1`, USER_TOKEN);
-    return (d.results || []).filter((m) => m.poster_path).slice(0, 12);
-  };
-  const [movies, series] = await Promise.all([newest(CATALOGS["tfi-streaming"]), newest(SERIES["tfi-series"])]);
-  return { lists, movies, series };
+  const lists = Object.fromEntries(await Promise.all(ALL_DEFS.map(async (def) => [def.id, (await findList(def))?.id])));
+  return { lists };
 }
 
 const PLATFORM_NAMES = ["Netflix", "Prime Video", "JioHotstar", "aha", "ZEE5", "SonyLIV", "Sun NXT", "ETV Win"];
 const REPO_URL = "https://github.com/anonvibes/TFI";
 
-// keys: the catalogs ticked in the picker (a configured link's /configure page opens with its own choice)
+// keys: the catalogs switched on, in the order Stremio shows them (a configured link's /configure page opens with its own choice)
 function landing(host, base, data, keys = ALL_KEYS) {
   const cfg = configPath(keys);
   const manifestUrl = `${base}${cfg}/manifest.json`;
+  const appInstall = `stremio://${host}${cfg}/manifest.json`;
   const webInstall = `https://web.stremio.com/#/addons?addon=${encodeURIComponent(manifestUrl)}`;
-  const short = (d) => d.name.replace(/^Telugu Dubbed(?: Series)?: /, "Dubbed: ").replace(/^Telugu (?:Movies|Series)$/, "Telugu");
-  const toggles = (defs) => Object.values(defs).map((d) => `<label class="tog"><input type="checkbox" value="${esc(d.key)}"${keys.includes(d.key) ? " checked" : ""}><span>${esc(short(d))}</span></label>`).join("");
   const js = (v) => JSON.stringify(v).replace(/</g, "\\u003c");
-  const strip = (title, items) => !items.length ? "" : `<h3>${esc(title)}</h3><div class="row">${items.map((m) => {
-    const name = m.title || m.name || "";
-    return `<a class="poster" href="https://www.themoviedb.org/${m.media_type === "tv" ? "tv" : "movie"}/${m.id}" target="_blank" rel="noopener" title="${esc(name)}"><img src="${IMG}w185${m.poster_path}" alt="${esc(name)}" loading="lazy" width="120" height="180"><span>${esc(name)}</span></a>`;
-  }).join("")}</div>`;
-  const cards = (defs) => Object.entries(defs).map(([id, def]) => `<div class="card"><h4>${esc(def.name)}</h4><p>${esc(def.about)}</p>${data.lists[id] ? `<a href="https://www.themoviedb.org/list/${data.lists[id]}" target="_blank" rel="noopener">View the list on TMDB →</a>` : ""}</div>`).join("");
+  const keysOf = (f) => ALL_DEFS.filter(f).map((d) => d.key);
+  const presets = {
+    all: ["Everything", ALL_KEYS],
+    telugu: ["Telugu originals", keysOf((d) => !d.dubbed)],
+    dubbed: ["Dubbed only", keysOf((d) => d.dubbed)],
+    movies: ["Movies only", keysOf((d) => d.media === "movie")],
+    series: ["Series only", keysOf((d) => d.media === "tv")],
+  };
+  const sameSet = (a, b) => a.length === b.length && a.every((k) => b.includes(k));
+  const names = Object.fromEntries(ALL_DEFS.map((d) => [d.key, [d.name, d.media === "tv" ? "Series" : "Movies"]]));
+  const icon = (d) => `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+  const card = (d) => {
+    const on = keys.includes(d.key);
+    const list = data.lists?.[d.id];
+    return `<label class="cat${on ? " on" : ""}">
+  <span class="cat-top"><span class="cat-name">${esc(d.name)}</span><span class="sw"><input type="checkbox" value="${esc(d.key)}"${on ? " checked" : ""} aria-label="${esc(d.name)}"><i></i></span></span>
+  <span class="cat-about">${esc(d.about)}</span>
+  <span class="cat-foot"><span class="tag${d.dubbed ? "" : " te"}">${d.dubbed ? "Telugu audio checked" : "Made in Telugu"}</span>${list ? `<a href="https://www.themoviedb.org/list/${list}" target="_blank" rel="noopener">TMDB list ↗</a>` : ""}</span>
+</label>`;
+  };
+  const group = (title, defs) => `<div class="group"><h3>${title}</h3><div class="cats">${Object.values(defs).map(card).join("")}</div></div>`;
   const desc = "Free Stremio addon: movies and web series with Telugu audio, new on Indian OTT. Telugu originals plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Refreshed every day.";
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>TFI Movies · Stremio addon: new movies and series in Telugu</title>
-<meta name="description" content="${esc(desc)}"><meta name="theme-color" content="#0d0618">
+<meta name="description" content="${esc(desc)}"><meta name="theme-color" content="#0a0712">
 <meta property="og:title" content="TFI Movies"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${esc(base)}/tfi-logo.png"><meta property="og:url" content="${esc(base)}/">
 <link rel="icon" type="image/png" href="/tfi-logo.png">
 <style>
-:root{--bg:#0d0618;--bg2:#1a0b33;--card:rgba(255,255,255,.05);--line:rgba(255,255,255,.1);--fg:#f4efff;--mut:#b7a9d6;--acc:#b26bff;--acc2:#e879f9;color-scheme:dark}
+:root{--bg:#0a0712;--fg:#f5f2ff;--mut:#a79fbd;--dim:#756d8d;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.15);--card:rgba(255,255,255,.035);--card2:rgba(255,255,255,.07);
+  --acc:#a855f7;--acc2:#e879f9;--grad:linear-gradient(135deg,#8b5cf6,#d946ef);--ok:#4ade80;--no:#f87171;--maybe:#fbbf24;color-scheme:dark}
 *{box-sizing:border-box}
-html{background:radial-gradient(1200px 600px at 50% -10%,#3b1676 0%,transparent 60%),var(--bg);min-height:100%}
-body{margin:0;color:var(--fg);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.gridbg{position:fixed;left:-20%;right:-20%;bottom:0;height:45vh;z-index:-1;pointer-events:none;opacity:.5;transform:perspective(420px) rotateX(58deg);transform-origin:bottom;
-  background:repeating-linear-gradient(90deg,rgba(178,107,255,.18) 0 1px,transparent 1px 64px),repeating-linear-gradient(0deg,rgba(178,107,255,.18) 0 1px,transparent 1px 44px);
-  -webkit-mask-image:linear-gradient(transparent,#000 70%);mask-image:linear-gradient(transparent,#000 70%)}
-.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
-header{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
-.brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--fg);text-decoration:none}
-.brand img{width:32px;height:32px;border-radius:8px}
-.pill{color:var(--mut);text-decoration:none;font-size:14px;border:1px solid var(--line);padding:6px 14px;border-radius:999px}
-.pill:hover{color:var(--fg);border-color:var(--acc)}
-.hero{display:grid;grid-template-columns:auto 1fr;gap:44px;align-items:center;padding:36px 0 20px}
-.hero .logo{width:210px;height:210px;border-radius:44px;box-shadow:0 0 70px rgba(178,107,255,.45);display:block}
-h1{font-size:clamp(30px,5vw,48px);line-height:1.1;margin:0 0 14px;letter-spacing:-.02em}
-h1 em{font-style:normal;background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
-.lead{color:var(--mut);font-size:18px;margin:0 0 24px;max-width:560px}
-.ctas{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px}
-.btn{display:inline-flex;align-items:center;gap:8px;padding:13px 22px;border-radius:12px;font-weight:600;text-decoration:none;color:#fff;border:1px solid var(--line);background:var(--card)}
-.btn.primary{background:linear-gradient(135deg,#8b3dff,#c026d3);border-color:transparent;box-shadow:0 8px 30px rgba(168,85,247,.4)}
-.btn:hover{filter:brightness(1.15)}
-.copy{display:flex;max-width:520px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:rgba(0,0,0,.3)}
-.copy input{flex:1;min-width:0;background:transparent;border:0;color:var(--mut);padding:11px 14px;font:13px ui-monospace,Consolas,monospace}
-.copy button{border:0;border-left:1px solid var(--line);background:var(--card);color:var(--fg);padding:0 18px;font:600 14px system-ui,sans-serif;cursor:pointer}
-.copy button:hover{background:rgba(255,255,255,.1)}
-.hint{color:var(--mut);font-size:13px;margin:8px 0 0}
-.badge{display:inline-block;font-size:13px;font-weight:600;background:rgba(178,107,255,.18);border:1px solid rgba(178,107,255,.45);border-radius:999px;padding:4px 12px;margin-bottom:14px}
-.pick{margin:0 0 20px;display:grid;gap:8px}
-.picktitle{margin:0 0 2px;font-size:14px;font-weight:600}
-.pickrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.picklab{font-size:12px;color:var(--mut);width:58px;text-transform:uppercase;letter-spacing:.06em}
-.tog input{position:absolute;opacity:0;pointer-events:none}
-.tog span{display:inline-block;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 14px;font-size:14px;cursor:pointer;user-select:none;color:var(--mut);transition:background .12s,border-color .12s}
-.tog input:checked+span{background:rgba(178,107,255,.22);border-color:var(--acc);color:var(--fg)}
-.tog input:checked+span::before{content:"\\2713  "}
-.tog input:focus-visible+span{outline:2px solid var(--acc2);outline-offset:2px}
-#pickmsg{display:none;color:#fca5a5;font-size:13px;margin:0 0 10px}
-.none #pickmsg{display:block}
-.none .ctas .btn,.none .copy{opacity:.4;pointer-events:none}
-section{padding:26px 0}
-h2{font-size:24px;margin:0 0 16px;letter-spacing:-.01em}
-h3{font-size:15px;color:var(--mut);margin:18px 0 10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
-.row{display:flex;gap:14px;overflow-x:auto;padding-bottom:10px;scroll-snap-type:x mandatory;scrollbar-width:thin}
-.poster{flex:0 0 120px;scroll-snap-align:start;color:var(--fg);text-decoration:none;font-size:13px}
-.poster img{width:120px;height:180px;object-fit:cover;border-radius:10px;display:block;background:var(--bg2);transition:transform .15s,box-shadow .15s}
-.poster:hover img{transform:translateY(-3px);box-shadow:0 10px 24px rgba(178,107,255,.35)}
-.poster span{display:block;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
-.card,.steps li{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
-.card h4{margin:0 0 6px;font-size:16px}
-.card p{margin:0 0 10px;color:var(--mut);font-size:14px}
-.card a{font-size:14px;text-decoration:none}
-.chips{display:flex;flex-wrap:wrap;gap:8px}
-.chips span{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 14px;font-size:14px}
-.steps{counter-reset:s;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;padding:0;margin:0;list-style:none}
-.steps li{counter-increment:s;color:var(--mut);font-size:15px}
-.steps li::before{content:counter(s);display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#8b3dff,#c026d3);color:#fff;font-weight:700;margin-bottom:8px}
-.steps b{color:var(--fg)}
-details{border-bottom:1px solid var(--line);padding:14px 0}
-summary{cursor:pointer;font-weight:600}
-details p{color:var(--mut);margin:8px 0 0}
+html{scroll-behavior:smooth;scroll-padding-top:80px;background:var(--bg)}
+body{margin:0;color:var(--fg);font:16px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(900px 520px at 12% -12%,rgba(139,92,246,.30),transparent 60%),radial-gradient(720px 440px at 96% 4%,rgba(217,70,239,.16),transparent 60%)}
 a{color:var(--acc2)}
-footer{border-top:1px solid var(--line);margin-top:24px;padding:24px 0 48px;color:var(--mut);font-size:13px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+.top{position:sticky;top:0;z-index:20;background:rgba(10,7,18,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:24px;height:64px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--fg);text-decoration:none;letter-spacing:-.01em}
+.brand img{width:30px;height:30px;border-radius:8px}
+nav{display:flex;align-items:center;gap:2px;margin-left:auto}
+nav a{color:var(--mut);text-decoration:none;font-size:14px;padding:6px 12px;border-radius:8px}
+nav a:hover{color:var(--fg);background:var(--card2)}
+nav a.gh{border:1px solid var(--line2);margin-left:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 18px;border-radius:10px;font-family:inherit;font-size:15px;font-weight:600;line-height:1.2;
+  text-decoration:none;color:var(--fg);border:1px solid var(--line2);background:var(--card2);cursor:pointer;white-space:nowrap;transition:filter .15s,background .15s}
+.btn:hover{background:rgba(255,255,255,.11)}
+.btn.primary{background:var(--grad);border-color:transparent;color:#fff;box-shadow:0 6px 24px rgba(168,85,247,.35)}
+.btn.primary:hover{filter:brightness(1.1)}
+.btn.lg{padding:14px 24px;font-size:16px;border-radius:12px}
+.btn svg{width:18px;height:18px}
+.hero{display:grid;grid-template-columns:1.3fr .7fr;gap:48px;align-items:center;padding:76px 0 60px}
+.badge{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#e9d5ff;background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.35);border-radius:999px;padding:5px 12px;margin-bottom:20px}
+.badge .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(74,222,128,.2)}
+h1{font-size:clamp(38px,6vw,66px);line-height:1.03;margin:0 0 18px;letter-spacing:-.035em;font-weight:800}
+h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{color:var(--mut);font-size:18px;margin:0 0 30px;max-width:580px}
+.ctas{display:flex;flex-wrap:wrap;gap:12px}
+.stats{display:flex;flex-wrap:wrap;gap:10px 28px;list-style:none;padding:0;margin:34px 0 0;color:var(--mut);font-size:14px}
+.stats b{color:var(--fg);font-size:15px}
+.art{position:relative;display:grid;place-items:center}
+.art::before{content:"";position:absolute;width:78%;aspect-ratio:1;border-radius:50%;background:var(--grad);filter:blur(72px);opacity:.35}
+.art img{position:relative;width:100%;max-width:290px;height:auto;aspect-ratio:1;border-radius:56px;border:1px solid var(--line2);display:block}
+section{padding:56px 0}
+.eyebrow{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--acc2);margin:0 0 8px}
+h2{font-size:clamp(26px,3.5vw,36px);line-height:1.15;margin:0 0 10px;letter-spacing:-.025em}
+.sub{color:var(--mut);margin:0 0 28px;max-width:660px}
+.presets{display:flex;flex-wrap:wrap;gap:4px;padding:5px;border:1px solid var(--line);background:var(--card);border-radius:12px;width:max-content;max-width:100%;margin:0 0 28px}
+.presets button{font:inherit;font-size:14px;font-weight:500;color:var(--mut);background:transparent;border:0;border-radius:8px;padding:7px 14px;cursor:pointer}
+.presets button:hover{color:var(--fg)}
+.presets button.on{background:var(--card2);color:var(--fg);box-shadow:inset 0 0 0 1px var(--line2)}
+.config{display:grid;grid-template-columns:1fr 340px;gap:28px;align-items:start}
+.group+.group{margin-top:28px}
+h3{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin:0 0 12px}
+.cats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.cat{display:flex;flex-direction:column;gap:8px;padding:16px 18px;border:1px solid var(--line);background:var(--card);border-radius:14px;cursor:pointer;transition:border-color .15s,background .15s}
+.cat:hover{border-color:var(--line2)}
+.cat.on{border-color:rgba(168,85,247,.55);background:linear-gradient(180deg,rgba(168,85,247,.11),rgba(168,85,247,.03))}
+.cat-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.cat-name{font-weight:650;font-size:16px;line-height:1.3}
+.cat-about{color:var(--mut);font-size:14px;line-height:1.5;flex:1}
+.cat-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
+.cat-foot a{color:var(--mut);text-decoration:none}
+.cat-foot a:hover{color:var(--fg)}
+.tag{font-size:12px;color:#d8b4fe;background:rgba(168,85,247,.13);border-radius:6px;padding:2px 8px}
+.tag.te{color:#86efac;background:rgba(74,222,128,.1)}
+.sw{position:relative;width:42px;height:24px;flex:none}
+.sw input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;z-index:1}
+.sw i{position:absolute;inset:0;border-radius:999px;background:rgba(255,255,255,.15);transition:background .2s}
+.sw i::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4);transition:transform .2s}
+.sw input:checked+i{background:var(--grad)}
+.sw input:checked+i::after{transform:translateX(18px)}
+.sw input:focus-visible+i{outline:2px solid var(--acc2);outline-offset:2px}
+.panel{position:sticky;top:84px;border:1px solid var(--line);background:rgba(22,15,38,.8);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:16px;padding:20px}
+.panel .head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.panel h4{margin:0;font-size:17px}
+.mut{color:var(--mut);font-size:13px}
+.mut b{color:var(--fg)}
+.note{display:flex;justify-content:space-between;gap:8px;color:var(--dim);font-size:13px;margin:4px 0 14px}
+.link{font:inherit;font-size:13px;color:var(--mut);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.link:hover{color:var(--fg)}
+.link:disabled{visibility:hidden}
+#order{list-style:none;margin:0 0 18px;padding:0;display:grid;gap:6px}
+#order li{display:flex;align-items:center;gap:10px;padding:7px 7px 7px 10px;border:1px solid var(--line);background:var(--card);border-radius:10px;font-size:14px}
+#order .num{width:22px;height:22px;flex:none;display:grid;place-items:center;border-radius:6px;background:var(--card2);color:var(--mut);font-size:12px;font-weight:600}
+#order .oname{flex:1;min-width:0;line-height:1.3}
+#order small{display:block;color:var(--dim);font-size:12px}
+#order button{width:28px;height:28px;flex:none;display:grid;place-items:center;border:1px solid var(--line);background:transparent;color:var(--mut);border-radius:7px;cursor:pointer;padding:0}
+#order button:hover:not(:disabled){color:var(--fg);border-color:var(--line2);background:var(--card2)}
+#order button:disabled{opacity:.25;cursor:default}
+#order button svg{width:14px;height:14px}
+#order .empty{justify-content:center;color:var(--mut);border-style:dashed;padding:16px}
+.panel .btn{width:100%}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.row2 .btn{font-size:14px;padding:9px 12px}
+.copy{display:flex;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.35);margin-top:14px}
+.copy input{flex:1;min-width:0;background:transparent;border:0;color:var(--mut);padding:9px 12px;font:12px ui-monospace,Consolas,monospace}
+.hint{color:var(--dim);font-size:12px;margin:8px 0 0}
+.none .js-install,.none .js-web,.none .js-copy{opacity:.4;pointer-events:none}
+.checks{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.check,.steps li{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:20px}
+.ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;margin-bottom:12px}
+.ic svg{width:18px;height:18px}
+.ic.ok{background:rgba(74,222,128,.12);color:var(--ok)}
+.ic.no{background:rgba(248,113,113,.12);color:var(--no)}
+.ic.maybe{background:rgba(251,191,36,.12);color:var(--maybe)}
+.check h4{margin:0 0 6px;font-size:16px}
+.check p{margin:0;color:var(--mut);font-size:14px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;list-style:none;padding:0;margin:0 0 36px;counter-reset:s}
+.steps li{counter-increment:s;color:var(--mut);font-size:15px}
+.steps li::before{content:counter(s);display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:var(--grad);color:#fff;font-weight:700;margin-bottom:12px}
+.steps b{color:var(--fg);display:block;margin-bottom:4px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips span{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 16px;font-size:14px}
+.faq{max-width:800px}
+details{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:0 18px;margin-bottom:10px}
+summary{cursor:pointer;font-weight:600;padding:15px 0;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--mut);font-size:22px;font-weight:400;line-height:1;transition:transform .2s}
+details[open] summary::after{transform:rotate(45deg)}
+details p{color:var(--mut);margin:0 0 16px}
+footer{border-top:1px solid var(--line);margin-top:24px;padding:28px 0 48px;color:var(--dim);font-size:13px}
 footer p{margin:4px 0}
-@media (max-width:720px){.hero{grid-template-columns:1fr;text-align:center;gap:20px;padding-top:16px}.hero .logo{width:150px;height:150px;margin:0 auto;border-radius:32px}
-  .lead{margin-left:auto;margin-right:auto}.ctas,.pickrow{justify-content:center}.picklab{width:100%;text-align:center}.copy{margin:0 auto}}
-</style></head><body><div class="gridbg"></div>
-<div class="wrap">
-<header><a class="brand" href="/"><img src="/tfi-logo.png" alt="">TFI Movies</a><a class="pill" href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a></header>
+footer a{color:var(--mut)}
+.mbar{display:none}
+@media (max-width:900px){
+  .hero{grid-template-columns:1fr;text-align:center;padding:40px 0 36px;gap:28px}
+  .art{order:-1}.art img{max-width:150px;border-radius:34px}
+  .lead{margin-left:auto;margin-right:auto}.ctas,.stats{justify-content:center}
+  .config{grid-template-columns:1fr}.panel{position:static}
+  .checks,.steps{grid-template-columns:1fr}
+  nav a:not(.gh){display:none}
+  body{padding-bottom:84px}
+  .mbar{display:flex;position:fixed;left:12px;right:12px;bottom:12px;z-index:30;align-items:center;justify-content:space-between;gap:12px;padding:10px 10px 10px 16px;
+    border:1px solid var(--line2);border-radius:14px;background:rgba(22,15,38,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+}
+@media (max-width:560px){.wrap{padding:0 16px}.cats{grid-template-columns:1fr}.presets{width:auto}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}html{scroll-behavior:auto}}
+</style></head><body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="/"><img src="/tfi-logo.png" alt="">TFI Movies</a>
+  <nav><a href="#customize">Customize</a><a href="#check">Telugu check</a><a href="#install">Install</a><a href="#faq">FAQ</a><a class="gh" href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a></nav>
+</div></header>
 
-<div class="hero">
-  <img class="logo" src="/tfi-logo.gif" onerror="this.onerror=null;this.src='/tfi-logo.png'" width="210" height="210" alt="TFI Movies logo">
+<main class="wrap">
+<section class="hero">
   <div>
-    <span class="badge">Telugu audio only</span>
-    <h1>New on OTT, <em>all in Telugu</em></h1>
-    <p class="lead">A free Stremio addon with the latest Telugu movies and web series, plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Every title has a Telugu audio track, confirmed or very likely. Refreshed every day.</p>
-    <div class="pick" id="pick">
-      <p class="picktitle">Choose your catalogs</p>
-      <div class="pickrow"><span class="picklab">Movies</span>${toggles(CATALOGS)}</div>
-      <div class="pickrow"><span class="picklab">Series</span>${toggles(SERIES)}</div>
-    </div>
-    <p id="pickmsg">Pick at least one catalog.</p>
+    <span class="badge"><span class="dot"></span>Telugu audio only · refreshed daily</span>
+    <h1>New on OTT,<br><em>all in Telugu.</em></h1>
+    <p class="lead">A free Stremio addon with the latest Telugu movies and web series, plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Every title has a Telugu audio track, confirmed or very likely.</p>
     <div class="ctas">
-      <a class="btn primary" id="installbtn" href="stremio://${esc(host)}${esc(cfg)}/manifest.json">Install in Stremio</a>
-      <a class="btn" id="webbtn" href="${esc(webInstall)}" target="_blank" rel="noopener">Use Stremio Web</a>
+      <a class="btn primary lg js-install" href="${esc(appInstall)}">${icon("M8 3v10M3 8h10")}Install in Stremio</a>
+      <a class="btn lg" href="#customize">Customize catalogs</a>
     </div>
-    <div class="copy"><input id="murl" value="${esc(manifestUrl)}" readonly aria-label="Addon link"><button type="button" id="copybtn">Copy</button></div>
-    <p class="hint">Button doesn't open Stremio? Copy the link and paste it into the search box on Stremio's Addons page.</p>
+    <ul class="stats"><li><b>${ALL_DEFS.length}</b> catalogs</li><li><b>${PLATFORM_NAMES.length}</b> OTT platforms</li><li><b>Daily</b> refresh</li><li><b>Free</b>, no account</li></ul>
   </div>
-</div>
-
-${data.movies.length || data.series.length ? `<section><h2>New on OTT right now</h2>${strip("Telugu movies", data.movies)}${strip("Telugu series", data.series)}</section>` : ""}
-
-<section><h2>Movie catalogs</h2><div class="grid">${cards(CATALOGS)}</div></section>
-<section><h2>Series catalogs</h2><div class="grid">${cards(SERIES)}</div></section>
-
-<section><h2>Platforms covered</h2><div class="chips">${PLATFORM_NAMES.map((p) => `<span>${esc(p)}</span>`).join("")}</div></section>
-
-<section><h2>How to install</h2><ol class="steps">
-  <li><b>Get Stremio.</b> It's free for Windows, Mac, Android, iPhone and Android TV at <a href="https://www.stremio.com/downloads" target="_blank" rel="noopener">stremio.com</a>.</li>
-  <li><b>Pick your catalogs and press Install in Stremio</b> above, then <b>Install</b> in the window that opens.</li>
-  <li><b>Open Board or Discover.</b> The TFI catalogs show up under Movies and Series.</li>
-</ol></section>
-
-<section><h2>Questions</h2>
-<details><summary>Does TFI Movies play videos?</summary><p>No. It adds catalogs: posters, details, ratings and trailers for what's new on Indian OTT. It doesn't host or link to any video. Watch on the streaming service that has the title.</p></details>
-<details><summary>How fresh are the catalogs?</summary><p>They update every morning (India time) from TMDB's streaming data, plus OTT release news from Sacnilk, 123telugu and 91mobiles, so new arrivals show up even before TMDB catches up.</p></details>
-<details><summary>Does every title have Telugu audio?</summary><p>That's the rule. Telugu films and series are in automatically. Every dubbed title is checked each day against the audio languages listed by JustWatch and Netflix, and against OTT release news (Sacnilk, 123telugu). A title goes in when Telugu is listed, or when JustWatch knows it but no service lists its audio languages yet (mostly Sun NXT). Titles whose services list other languages but not Telugu are left out, and so are titles JustWatch doesn't know at all, unless the news confirms Telugu. Found one without Telugu? <a href="${REPO_URL}/issues" target="_blank" rel="noopener">Tell us on GitHub</a>.</p></details>
-<details><summary>Can I hide catalogs I don't want?</summary><p>Yes. Untick them above before you install. Already installed? Open TFI Movies in Stremio's Addons page, press <b>Configure</b>, pick again and install.</p></details>
-<details><summary>Is it free? Can I see how it works?</summary><p>Yes, it's free and needs no account. The code is open source on <a href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a>.</p></details>
+  <div class="art"><img src="/tfi-logo.gif" onerror="this.onerror=null;this.src='/tfi-logo.png'" width="290" height="290" alt="TFI Movies logo"></div>
 </section>
 
-<footer>
+<section id="customize">
+  <p class="eyebrow">Customize</p>
+  <h2>Build your addon</h2>
+  <p class="sub">Switch catalogs on or off and set the order Stremio shows them in. Your choice is saved in the addon link, so there's no account to make.</p>
+  <div class="presets" id="presets" role="group" aria-label="Presets">${Object.entries(presets).map(([p, [label, list]]) => `<button type="button" data-p="${p}" aria-pressed="${sameSet(list, keys)}"${sameSet(list, keys) ? ' class="on"' : ""}>${label}</button>`).join("")}</div>
+  <div class="config">
+    <div id="cats">${group("Movies", CATALOGS)}${group("Series", SERIES)}</div>
+    <aside class="panel">
+      <div class="head"><h4>Your addon</h4><span class="mut"><b class="js-count">${keys.length}</b> of ${ALL_KEYS.length} catalogs</span></div>
+      <div class="note"><span>Stremio shows them in this order.</span><button type="button" class="link" id="resetorder">Reset order</button></div>
+      <ol id="order">${keys.map((k, i) => `<li><span class="num">${i + 1}</span><span class="oname">${esc(names[k][0])}<small>${names[k][1]}</small></span></li>`).join("")}</ol>
+      <a class="btn primary js-install" href="${esc(appInstall)}">Install in Stremio</a>
+      <div class="row2"><a class="btn js-web" href="${esc(webInstall)}" target="_blank" rel="noopener">Stremio Web</a><button type="button" class="btn js-copy" data-label="Copy link">Copy link</button></div>
+      <div class="copy"><input id="murl" value="${esc(manifestUrl)}" readonly aria-label="Addon link"></div>
+      <p class="hint">Install button doesn't open Stremio? Copy the link and paste it into the search box on Stremio's Addons page.</p>
+    </aside>
+  </div>
+</section>
+
+<section id="check">
+  <p class="eyebrow">Telugu audio only</p>
+  <h2>Every title has a Telugu track</h2>
+  <p class="sub">Telugu films and series are in automatically. Every dubbed title is checked each day against the audio languages JustWatch and Netflix list, and against OTT release news.</p>
+  <div class="checks">
+    <div class="check"><div class="ic ok">${icon("M3 8.5l3.2 3.2L13 5")}</div><h4>Confirmed</h4><p>JustWatch or Netflix lists Telugu audio, it's on ETV Win, or OTT release news (Sacnilk, 123telugu) says so.</p></div>
+    <div class="check"><div class="ic no">${icon("M4 4l8 8M12 4l-8 8")}</div><h4>Left out</h4><p>The services list the audio languages and Telugu isn't one of them, or JustWatch doesn't know the title and no news confirms Telugu.</p></div>
+    <div class="check"><div class="ic maybe">${icon("M6 6a2 2 0 1 1 2.8 1.8c-.5.3-.8.7-.8 1.2v.5M8 12h.01")}</div><h4>Kept, unconfirmed</h4><p>JustWatch knows the title but no service lists its audio languages yet (mostly Sun NXT), so it gets the benefit of the doubt.</p></div>
+  </div>
+</section>
+
+<section id="install">
+  <p class="eyebrow">Get started</p>
+  <h2>Install in a minute</h2>
+  <p class="sub">TFI Movies adds catalogs to Stremio: posters, details, ratings and trailers. Watch on the streaming service that has the title.</p>
+  <ol class="steps">
+    <li><b>Get Stremio</b>It's free for Windows, Mac, Android, iPhone and Android TV at <a href="https://www.stremio.com/downloads" target="_blank" rel="noopener">stremio.com</a>.</li>
+    <li><b>Install TFI Movies</b>Press <a href="#customize">Install in Stremio</a> (customize first if you like), then <strong>Install</strong> in the window that opens.</li>
+    <li><b>Open Board or Discover</b>The TFI catalogs show up under Movies and Series.</li>
+  </ol>
+  <h3>Platforms covered</h3>
+  <div class="chips">${PLATFORM_NAMES.map((p) => `<span>${esc(p)}</span>`).join("")}</div>
+</section>
+
+<section id="faq" class="faq">
+  <p class="eyebrow">FAQ</p>
+  <h2>Questions</h2>
+  <details><summary>Does TFI Movies play videos?</summary><p>No. It adds catalogs: posters, details, ratings and trailers for what's new on Indian OTT. It doesn't host or link to any video. Watch on the streaming service that has the title.</p></details>
+  <details><summary>How fresh are the catalogs?</summary><p>They update every morning (India time) from TMDB's streaming data, plus OTT release news from Sacnilk, 123telugu and 91mobiles, so new arrivals show up even before TMDB catches up.</p></details>
+  <details><summary>Does every title have Telugu audio?</summary><p>That's the rule. See <a href="#check">how the Telugu check works</a>: a title goes in when Telugu is listed, or when JustWatch knows it but no service lists its audio languages yet. Found one without Telugu? <a href="${REPO_URL}/issues" target="_blank" rel="noopener">Tell us on GitHub</a>.</p></details>
+  <details><summary>Can I hide catalogs or change their order?</summary><p>Yes. Under <a href="#customize">Customize</a>, switch off the ones you don't want and use the arrows to set their order, then install. Already installed? Open TFI Movies on Stremio's Addons page, press <b>Configure</b>, change your choice and install again.</p></details>
+  <details><summary>Is it free? Can I see how it works?</summary><p>Yes, it's free and needs no account. The code is open source on <a href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a>.</p></details>
+</section>
+</main>
+
+<footer><div class="wrap">
   <p>TFI Movies v${esc(manifest(base).version)} · <a href="${REPO_URL}" target="_blank" rel="noopener">Source on GitHub</a></p>
   <p>Data from <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a>. This product uses the TMDB API but is not endorsed or certified by TMDB. Not affiliated with Stremio or any streaming service.</p>
-</footer>
-</div>
+</div></footer>
+
+<div class="mbar"><span class="mut"><b class="js-count">${keys.length}</b> of ${ALL_KEYS.length} catalogs</span><a class="btn primary js-install" href="${esc(appInstall)}">Install in Stremio</a></div>
+
 <script>
-var KEYS = ${js(ALL_KEYS)}, BASE = ${js(base)}, HOST = ${js(host)};
-function update() {
-  var on = KEYS.filter(function (k) { var i = document.querySelector('#pick input[value="' + k + '"]'); return i && i.checked; });
-  var cfg = on.length === KEYS.length ? "" : "/" + on.join(",");
-  var m = BASE + cfg + "/manifest.json";
-  document.getElementById("murl").value = m;
-  document.getElementById("installbtn").href = "stremio://" + HOST + cfg + "/manifest.json";
-  document.getElementById("webbtn").href = "https://web.stremio.com/#/addons?addon=" + encodeURIComponent(m);
-  document.body.classList.toggle("none", !on.length);
+(function () {
+var KEYS = ${js(ALL_KEYS)}, NAMES = ${js(names)}, PRESETS = ${js(Object.fromEntries(Object.entries(presets).map(([p, v]) => [p, v[1]])))};
+var BASE = ${js(base)}, HOST = ${js(host)}, UP = ${js(icon("M4 10l4-4 4 4"))}, DOWN = ${js(icon("M4 6l4 4 4-4"))};
+var order = ${js(keys)};
+var $ = function (s) { return document.querySelector(s); };
+var all = function (s) { return [].slice.call(document.querySelectorAll(s)); };
+var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+var sameSet = function (a, b) { return a.length === b.length && a.every(function (k) { return b.indexOf(k) >= 0; }); };
+var defaultOrder = function () { return KEYS.filter(function (k) { return order.indexOf(k) >= 0; }); };
+function moveBtn(k, d, label, off) {
+  return '<button type="button" data-k="' + k + '" data-d="' + d + '" aria-label="Move ' + esc(NAMES[k][0]) + " " + label + '"' + (off ? " disabled" : "") + ">" + (d < 0 ? UP : DOWN) + "</button>";
 }
-document.getElementById("pick").addEventListener("change", update);
-document.getElementById("copybtn").addEventListener("click", async function () {
-  var b = this, i = document.getElementById("murl");
-  try { await navigator.clipboard.writeText(i.value); } catch (e) { i.select(); document.execCommand("copy"); }
-  b.textContent = "Copied!"; setTimeout(function () { b.textContent = "Copy"; }, 1600);
+function render() {
+  var cfg = order.join(",") === KEYS.join(",") ? "" : "/" + order.join(",");
+  var m = BASE + cfg + "/manifest.json";
+  $("#murl").value = m;
+  all(".js-install").forEach(function (a) { a.href = "stremio://" + HOST + cfg + "/manifest.json"; });
+  all(".js-web").forEach(function (a) { a.href = "https://web.stremio.com/#/addons?addon=" + encodeURIComponent(m); });
+  all(".js-count").forEach(function (e) { e.textContent = order.length; });
+  all("#cats input").forEach(function (b) { b.checked = order.indexOf(b.value) >= 0; b.closest(".cat").classList.toggle("on", b.checked); });
+  all("#presets button").forEach(function (b) { var on = sameSet(PRESETS[b.getAttribute("data-p")], order); b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+  $("#order").innerHTML = order.length ? order.map(function (k, i) {
+    return '<li><span class="num">' + (i + 1) + '</span><span class="oname">' + esc(NAMES[k][0]) + "<small>" + NAMES[k][1] + "</small></span>"
+      + moveBtn(k, -1, "up", i === 0) + moveBtn(k, 1, "down", i === order.length - 1) + "</li>";
+  }).join("") : '<li class="empty">Switch on at least one catalog.</li>';
+  $("#resetorder").disabled = order.join(",") === defaultOrder().join(",");
+  document.body.classList.toggle("none", !order.length);
+}
+$("#cats").addEventListener("change", function (e) {
+  var k = e.target.value, i = order.indexOf(k);
+  if (!k) return;
+  if (e.target.checked && i < 0) order.push(k);
+  if (!e.target.checked && i >= 0) order.splice(i, 1);
+  render();
 });
+$("#presets").addEventListener("click", function (e) {
+  var b = e.target.closest("button[data-p]");
+  if (b) { order = PRESETS[b.getAttribute("data-p")].slice(); render(); }
+});
+$("#order").addEventListener("click", function (e) {
+  var b = e.target.closest("button[data-d]");
+  if (!b) return;
+  var k = b.getAttribute("data-k"), d = b.getAttribute("data-d"), i = order.indexOf(k), j = i + Number(d);
+  if (i < 0 || j < 0 || j >= order.length) return;
+  order.splice(j, 0, order.splice(i, 1)[0]);
+  render();
+  var next = document.querySelector('#order button[data-k="' + k + '"][data-d="' + d + '"]:not(:disabled)') || document.querySelector('#order button[data-k="' + k + '"]:not(:disabled)');
+  if (next) next.focus();
+});
+$("#resetorder").addEventListener("click", function () { order = defaultOrder(); render(); });
+all(".js-copy").forEach(function (b) {
+  b.addEventListener("click", function () {
+    var input = $("#murl"), label = b.getAttribute("data-label");
+    var done = function () { b.textContent = "Copied!"; setTimeout(function () { b.textContent = label; }, 1600); };
+    var fallback = function () { input.select(); document.execCommand("copy"); done(); };
+    if (navigator.clipboard) navigator.clipboard.writeText(input.value).then(done, fallback); else fallback();
+  });
+});
+render();
+})();
 </script>
 </body></html>`;
 }
@@ -990,7 +1137,7 @@ export default async function handler(req, res) {
     if (cm && (keys = parseConfig(cm[1]))) path = cm[2];
     if (path === "/" || path === "/configure") {
       const data = await Promise.race([landingData().catch(() => null), sleep(4000).then(() => null)]);
-      return send(res, 200, landing(host, base, data || { lists: {}, movies: [], series: [] }, keys || ALL_KEYS), data ? 3600 : 300, "text/html; charset=utf-8");
+      return send(res, 200, landing(host, base, data || { lists: {} }, keys || ALL_KEYS), data ? 3600 : 300, "text/html; charset=utf-8");
     }
     if (path === "/manifest.json") return send(res, 200, manifest(base, keys || ALL_KEYS), 3600);
     // What the home server's daily Telugu-audio check looks up
