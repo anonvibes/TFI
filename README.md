@@ -10,7 +10,7 @@ TFI Movies only adds catalogs (posters, details, ratings and trailers). It doesn
 
 ## Telugu audio only
 
-Every title has Telugu audio, which is the point of the addon. Telugu films and series are in automatically. Each dubbed title is checked daily:
+Every title most probably has Telugu audio, which is the point of the addon. It isn't guaranteed: TFI Movies only lists titles and doesn't provide streams, so whether you actually get Telugu audio depends on your stream addons and how they're configured. Telugu films and series are in automatically. Each dubbed title is checked daily:
 
 - **Confirmed:** [JustWatch](https://www.justwatch.com/in) lists Telugu audio for one of its Indian streaming offers, Netflix's title page lists Telugu, it's on ETV Win (Telugu only), or OTT release news says so (Sacnilk's audio languages, 123telugu's "Telugu Dub").
 - **Left out:** the services list the audio languages and Telugu isn't one of them. That beats a news report of Telugu audio. A provider's list that leaves out the title's own language counts as incomplete, so it can confirm Telugu but not rule it out. Titles JustWatch doesn't know at all (mostly obscure films and stand-up specials) are left out too, unless the news confirms Telugu.
@@ -100,6 +100,10 @@ Set these in Vercel under **Settings → Environment Variables**, then redeploy.
 | `lib/news.js` | Reads and matches OTT release news (including when it reports Telugu audio); the possibly-missing check |
 | `lib/logo.js` | Addon logo (served at `/logo.png`) |
 | `vercel.json` | Sends every request to `api/index.js`, and schedules the daily `/sync` and `/sync-series` |
+
+## AI disclaimer
+
+TFI Movies was built with the help of AI: the code, the home page and the catalog rules. The catalogs are made automatically every day, without a person checking each title, so a title, date or audio language can be wrong. Spot a mistake? [Open an issue](https://github.com/anonvibes/TFI/issues).
 
 ---
 
