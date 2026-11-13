@@ -828,6 +828,10 @@ function landing(host, base, data, keys = ALL_KEYS) {
   const cfg = configPath(keys);
   const manifestUrl = `${base}${cfg}/manifest.json`;
   const appInstall = `stremio://${host}${cfg}/manifest.json`;
+  // Nuvio's phone apps (and the Mac app) install an addon from nuvio://<host>/.../manifest.json. The collection
+  // needs all the catalogs, so its button always installs the full addon.
+  const nuvioInstall = `nuvio://${host}${cfg}/manifest.json`;
+  const nuvioInstallAll = `nuvio://${host}/manifest.json`;
   const webInstall = `https://web.stremio.com/#/addons?addon=${encodeURIComponent(manifestUrl)}`;
   const js = (v) => JSON.stringify(v).replace(/</g, "\\u003c");
   const keysOf = (f) => ALL_DEFS.filter(f).map((d) => d.key);
@@ -950,15 +954,39 @@ h3{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;c
 .copy{display:flex;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.35);margin-top:14px}
 .copy input{flex:1;min-width:0;background:transparent;border:0;color:var(--mut);padding:9px 12px;font:12px ui-monospace,Consolas,monospace}
 .hint{color:var(--dim);font-size:12px;margin:8px 0 0}
+.copy .btn{width:auto;border:0;border-left:1px solid var(--line);border-radius:0 9px 9px 0;font-size:13px;padding:8px 12px}
+.paths{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 8px}
+.path{display:flex;flex-direction:column;gap:6px;padding:20px 22px;border-radius:16px;border:1px solid var(--line);background:var(--card);text-decoration:none;color:var(--mut);font-size:15px;transition:border-color .15s,background .15s}
+.path:hover{border-color:var(--line2);background:var(--card2)}
+.path b{color:var(--fg);font-size:18px}
+.path .go{margin-top:auto;padding-top:8px;color:var(--acc2);font-weight:600;font-size:14px}
+.kind{align-self:flex-start;font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;border-radius:999px;padding:3px 10px}
+.kind.cat{color:#e9d5ff;background:rgba(168,85,247,.16)}
+.kind.col{color:#fbcfe8;background:rgba(236,72,153,.16)}
+.path.col{border-color:rgba(236,72,153,.28)}
+.band{border:1px solid rgba(236,72,153,.28);border-radius:24px;padding:44px clamp(18px,4vw,44px);margin:28px 0;
+  background:radial-gradient(760px 320px at 88% -10%,rgba(236,72,153,.13),transparent 70%),radial-gradient(600px 300px at 0% 110%,rgba(139,92,246,.10),transparent 70%),rgba(255,255,255,.015)}
+.band .eyebrow{color:#f9a8d4}
 .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0 0 28px}
 .tiles img{display:block;width:100%;height:auto;aspect-ratio:16/9;border-radius:12px;border:1px solid var(--line);background:var(--card)}
-.combine{max-width:640px}
-.combine textarea{display:block;width:100%;min-height:96px;resize:vertical;background:rgba(0,0,0,.35);border:1px solid var(--line2);border-radius:10px;color:var(--fg);padding:10px 12px;font:12px/1.5 ui-monospace,Consolas,monospace}
-.combine .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.nmsg{font-size:14px;margin:10px 0 0;min-height:1.4em;color:var(--mut)}
+.flow{list-style:none;margin:0;padding:0;display:grid;gap:10px;counter-reset:f;max-width:860px}
+.flow>li{counter-increment:f;display:grid;grid-template-columns:34px 1fr auto;gap:14px;align-items:center;padding:14px 16px;border:1px solid var(--line);background:rgba(10,7,18,.55);border-radius:14px}
+.flow>li::before{content:counter(f);width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,#d946ef,#ec4899);color:#fff;font-weight:700}
+.flow b{display:block;color:var(--fg);font-size:15px}
+.flow .d{margin:2px 0 0;color:var(--mut);font-size:14px}
+.flow .act{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.flow .act .btn{font-size:14px;padding:9px 14px}
+.nmsg{font-size:14px;margin:6px 0 0;color:var(--mut)}
+.nmsg:empty{display:none}
 .nmsg.ok{color:var(--ok)}.nmsg.err{color:var(--no)}
-#nuvio .hint{max-width:640px;font-size:13px;line-height:1.6;margin-top:14px}
-#nuvio .hint code{word-break:break-all;color:var(--mut)}
+.more{max-width:860px;margin-top:16px;color:var(--mut);font-size:14px}
+.more p{margin:8px 0}
+.more code{word-break:break-all;color:var(--mut)}
+.more details{background:transparent;margin:10px 0 0}
+.more details summary{font-weight:500;font-size:14px;padding:12px 0}
+.combine textarea{display:block;width:100%;min-height:96px;resize:vertical;background:rgba(0,0,0,.35);border:1px solid var(--line2);border-radius:10px;color:var(--fg);padding:10px 12px;font:12px/1.5 ui-monospace,Consolas,monospace}
+.combine .btn{margin:10px 0 14px}
+[hidden]{display:none!important}
 sup{line-height:0}
 .ast{color:var(--acc2);text-decoration:none;font-weight:700;padding:0 2px}
 .ast:hover{color:var(--fg)}
@@ -969,9 +997,9 @@ sup{line-height:0}
 .callout .ic{margin:0;flex:none}
 .ai{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px 16px;margin:0 0 16px;color:var(--mut)}
 .ai b{color:var(--fg)}
-.none .js-install,.none .js-web,.none .js-copy{opacity:.4;pointer-events:none}
+.none .js-install,.none .js-nuvio,.none .js-web,.none .js-copy{opacity:.4;pointer-events:none}
 .checks{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.check,.steps li{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:20px}
+.check{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:20px}
 .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;margin-bottom:12px}
 .ic svg{width:18px;height:18px}
 .ic.ok{background:rgba(74,222,128,.12);color:var(--ok)}
@@ -979,12 +1007,6 @@ sup{line-height:0}
 .ic.maybe{background:rgba(251,191,36,.12);color:var(--maybe)}
 .check h4{margin:0 0 6px;font-size:16px}
 .check p{margin:0;color:var(--mut);font-size:14px}
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;list-style:none;padding:0;margin:0 0 36px;counter-reset:s}
-.steps li{counter-increment:s;color:var(--mut);font-size:15px}
-.steps li::before{content:counter(s);display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:var(--grad);color:#fff;font-weight:700;margin-bottom:12px}
-.steps b{color:var(--fg);display:block;margin-bottom:4px}
-.chips{display:flex;flex-wrap:wrap;gap:8px}
-.chips span{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 16px;font-size:14px}
 .faq{max-width:800px}
 details{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:0 18px;margin-bottom:10px}
 summary{cursor:pointer;font-weight:600;padding:15px 0;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px}
@@ -1001,8 +1023,10 @@ footer a{color:var(--mut)}
   .art{order:-1}.art img{max-width:150px;border-radius:34px}
   .lead{margin-left:auto;margin-right:auto}.ctas,.stats{justify-content:center}
   .config{grid-template-columns:1fr}.panel{position:static}
-  .checks,.steps{grid-template-columns:1fr}
+  .checks,.paths{grid-template-columns:1fr}
   .tiles{grid-template-columns:repeat(2,1fr)}
+  .flow>li{grid-template-columns:32px 1fr;align-items:start}
+  .flow .act{grid-column:2;justify-content:flex-start}
   nav a:not(.gh){display:none}
   body{padding-bottom:84px}
   .mbar{display:flex;position:fixed;left:12px;right:12px;bottom:12px;z-index:30;align-items:center;justify-content:space-between;gap:12px;padding:10px 10px 10px 16px;
@@ -1013,7 +1037,7 @@ footer a{color:var(--mut)}
 </style></head><body>
 <header class="top"><div class="wrap">
   <a class="brand" href="/"><img src="/tfi-logo.png" alt="">TFI Movies</a>
-  <nav><a href="#customize">Customize</a><a href="#check">Telugu check</a><a href="#install">Install</a><a href="#nuvio">Nuvio</a><a href="#faq">FAQ</a><a class="gh" href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a></nav>
+  <nav><a href="#customize">Catalogs</a><a href="#nuvio">Nuvio collection</a><a href="#check">Telugu check</a><a href="#faq">FAQ</a><a class="gh" href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a></nav>
 </div></header>
 
 <main class="wrap">
@@ -1021,10 +1045,10 @@ footer a{color:var(--mut)}
   <div>
     <span class="badge"><span class="dot"></span><span>Telugu audio only${ast} · refreshed daily</span></span>
     <h1>New on OTT,<br><em>all in Telugu.</em>${ast}</h1>
-    <p class="lead">A free Stremio addon with the latest Telugu movies and web series, plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Every title most probably has a Telugu audio track.${ast}</p>
+    <p class="lead">Free catalogs for Stremio and Nuvio with the latest Telugu movies and web series, plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Every title most probably has a Telugu audio track.${ast}</p>
     <div class="ctas">
       <a class="btn primary lg js-install" href="${esc(appInstall)}">${icon("M8 3v10M3 8h10")}Install in Stremio</a>
-      <a class="btn lg" href="#customize">Customize catalogs</a>
+      <a class="btn lg js-nuvio" href="${esc(nuvioInstall)}">${icon("M8 3v10M3 8h10")}Install in Nuvio</a>
     </div>
     <ul class="stats"><li><b>${ALL_DEFS.length}</b> catalogs</li><li><b>${PLATFORM_NAMES.length}</b> OTT platforms</li><li><b>Daily</b> refresh</li><li><b>Free</b>, no account</li></ul>
     <p class="fine">* Most probably, not guaranteed. Whether you actually get Telugu audio depends on your stream addons and how they're configured. <a href="#note">More</a></p>
@@ -1032,22 +1056,50 @@ footer a{color:var(--mut)}
   <div class="art"><img src="/tfi-logo.gif" onerror="this.onerror=null;this.src='/tfi-logo.png'" width="290" height="290" alt="TFI Movies logo"></div>
 </section>
 
+<div class="paths">
+  <a class="path" href="#customize"><span class="kind cat">Catalogs</span><b>The lists of titles</b>${ALL_DEFS.length} catalogs of new Telugu and Telugu-dubbed movies and series. Install them in Stremio or Nuvio, and pick which ones you want.<span class="go">Choose catalogs →</span></a>
+  <a class="path col" href="#nuvio"><span class="kind col">Nuvio collection</span><b>Tiles on Nuvio's Home</b>An extra for Nuvio: shows the catalogs as a row of tiles, with covers made from the newest titles in each list. Needs the catalogs installed.<span class="go">Add to Nuvio →</span></a>
+</div>
+
 <section id="customize">
-  <p class="eyebrow">Customize</p>
-  <h2>Build your addon</h2>
-  <p class="sub">Switch catalogs on or off and set the order Stremio shows them in. Your choice is saved in the addon link, so there's no account to make.</p>
+  <p class="eyebrow">Catalogs · Stremio and Nuvio</p>
+  <h2>Choose your catalogs</h2>
+  <p class="sub">The catalogs are the lists themselves. Switch them on or off and set the order your app shows them in. Your choice is saved in the addon link, so there's no account to make.</p>
   <div class="presets" id="presets" role="group" aria-label="Presets">${Object.entries(presets).map(([p, [label, list]]) => `<button type="button" data-p="${p}" aria-pressed="${sameSet(list, keys)}"${sameSet(list, keys) ? ' class="on"' : ""}>${label}</button>`).join("")}</div>
   <div class="config">
     <div id="cats">${group("Movies", CATALOGS)}${group("Series", SERIES)}</div>
     <aside class="panel">
       <div class="head"><h4>Your addon</h4><span class="mut"><b class="js-count">${keys.length}</b> of ${ALL_KEYS.length} catalogs</span></div>
-      <div class="note"><span>Stremio shows them in this order.</span><button type="button" class="link" id="resetorder">Reset order</button></div>
+      <div class="note"><span>Your app shows them in this order.</span><button type="button" class="link" id="resetorder">Reset order</button></div>
       <ol id="order">${keys.map((k, i) => `<li><span class="num">${i + 1}</span><span class="oname">${esc(names[k][0])}<small>${names[k][1]}</small></span></li>`).join("")}</ol>
       <a class="btn primary js-install" href="${esc(appInstall)}">Install in Stremio</a>
-      <div class="row2"><a class="btn js-web" href="${esc(webInstall)}" target="_blank" rel="noopener">Stremio Web</a><button type="button" class="btn js-copy" data-label="Copy link">Copy link</button></div>
-      <div class="copy"><input id="murl" value="${esc(manifestUrl)}" readonly aria-label="Addon link"></div>
-      <p class="hint">Install button doesn't open Stremio? Copy the link and paste it into the search box on Stremio's Addons page.</p>
+      <div class="row2"><a class="btn js-nuvio" href="${esc(nuvioInstall)}">Install in Nuvio</a><a class="btn js-web" href="${esc(webInstall)}" target="_blank" rel="noopener">Stremio Web</a></div>
+      <div class="copy"><input id="murl" value="${esc(manifestUrl)}" readonly aria-label="Addon link"><button type="button" class="btn js-copy" data-label="Copy">Copy</button></div>
+      <p class="hint">A button doesn't open your app (for example Nuvio on Windows)? Copy the link and add it on the app's Addons page.</p>
     </aside>
+  </div>
+</section>
+
+<section id="nuvio" class="band">
+  <p class="eyebrow">Nuvio collection · Nuvio only</p>
+  <h2>Show the catalogs as tiles on Nuvio's Home</h2>
+  <p class="sub">A collection doesn't add any titles: it's how Nuvio shows the catalogs above, as a “TFI Movies” row with a tile for each. Every cover is made from the newest titles in its list, changes when the list does, and comes alive when you select it.</p>
+  <div class="tiles">${ALL_DEFS.map((d) => `<img src="/art/${esc(d.key)}/cover.webp" data-focus="/art/${esc(d.key)}/focus.gif" width="320" height="180" loading="lazy" alt="Cover of ${esc(d.name)}">`).join("")}</div>
+  <ol class="flow">
+    <li><div><b>Install the catalogs in Nuvio</b><p class="d">All ${ALL_DEFS.length} of them, so every tile has something to show. Already done? Skip this.</p></div>
+      <div class="act"><a class="btn" href="${esc(nuvioInstallAll)}">Install in Nuvio</a><button type="button" class="btn js-copy-all" data-label="Copy link">Copy link</button></div></li>
+    <li><div><b>In Nuvio, copy your collections</b><p class="d">Open <strong>Settings → Layout → Collections</strong> and tap the <strong>Copy</strong> icon at the top right.</p></div></li>
+    <li><div><b>Add TFI Movies to them</b><p class="d">Takes what you just copied, adds the TFI Movies collection and copies it back. Your own collections stay as they are.</p>
+      <p class="nmsg" id="nmsg" role="status"></p></div>
+      <div class="act"><button type="button" class="btn primary" id="addtfi">Add TFI Movies</button><button type="button" class="btn primary" id="copyresult" hidden>Copy result</button></div></li>
+    <li><div><b>In Nuvio, paste and import</b><p class="d">On the same screen tap the <strong>Paste</strong> icon at the top right, paste, and tap <strong>Import</strong>.</p></div></li>
+  </ol>
+  <div class="more">
+    <p><b>No collections in Nuvio yet?</b> Skip steps 2 and 3: <button type="button" class="link" id="copytfi">copy the TFI collection</button> and paste it in step 4. Pasting in Nuvio replaces all your collections, which is why step 3 brings yours along.</p>
+    <p><b>Nuvio on a TV?</b> Simpler: <b>Addons → Collections → Import → From URL</b> with <code>${esc(base)}/nuvio-collections.json</code>. The TV app adds it next to your own collections.</p>
+    <details id="manual"><summary>Step 3 can't read what you copied? Paste it here instead</summary>
+      <div class="combine"><textarea id="mine" rows="4" spellcheck="false" placeholder="Paste what Nuvio's Copy icon copied" aria-label="Your Nuvio collections"></textarea>
+      <button type="button" class="btn" id="combine">Add TFI Movies and copy</button></div></details>
   </div>
 </section>
 
@@ -1063,45 +1115,15 @@ footer a{color:var(--mut)}
   <div class="callout" id="note"><div class="ic maybe">${icon("M8 4.5v4.5M8 11.5h.01")}</div><p><b>* Most probably, not guaranteed.</b> The check above can be wrong, and a dub isn't always on every service. TFI Movies only lists titles and doesn't provide any streams, so whether you actually get Telugu audio when you play a title depends on your stream addons and how they're configured (for example their language settings and which version of the title they find).</p></div>
 </section>
 
-<section id="install">
-  <p class="eyebrow">Get started</p>
-  <h2>Install in a minute</h2>
-  <p class="sub">TFI Movies adds catalogs to Stremio: posters, details, ratings and trailers. Watch on the streaming service that has the title.</p>
-  <ol class="steps">
-    <li><b>Get Stremio</b>It's free for Windows, Mac, Android, iPhone and Android TV at <a href="https://www.stremio.com/downloads" target="_blank" rel="noopener">stremio.com</a>.</li>
-    <li><b>Install TFI Movies</b>Press <a href="#customize">Install in Stremio</a> (customize first if you like), then <strong>Install</strong> in the window that opens.</li>
-    <li><b>Open Board or Discover</b>The TFI catalogs show up under Movies and Series.</li>
-  </ol>
-  <h3>Platforms covered</h3>
-  <div class="chips">${PLATFORM_NAMES.map((p) => `<span>${esc(p)}</span>`).join("")}</div>
-</section>
-
-<section id="nuvio">
-  <p class="eyebrow">Nuvio</p>
-  <h2>Add it to Nuvio as a collection</h2>
-  <p class="sub">Use Nuvio? Get every TFI catalog as a row of tiles. Each cover shows the newest titles in its list and changes when the list does, and it comes alive when you select it.</p>
-  <div class="tiles">${ALL_DEFS.map((d) => `<img src="/art/${esc(d.key)}/cover.webp" data-focus="/art/${esc(d.key)}/focus.gif" width="320" height="180" loading="lazy" alt="Cover of ${esc(d.name)}">`).join("")}</div>
-  <ol class="steps">
-    <li><b>Install the addon in Nuvio</b>Copy the addon link under <a href="#customize">Customize</a> and add it on Nuvio's Addons page. Keep all ${ALL_DEFS.length} catalogs on.</li>
-    <li><b>Copy your collections</b>In Nuvio open <strong>Settings → Layout → Collections</strong> and tap the <strong>Copy</strong> icon at the top right. Paste it in the box below and tap <strong>Add TFI and copy</strong>.</li>
-    <li><b>Paste it back into Nuvio</b>On the same Nuvio screen tap the <strong>Paste</strong> icon at the top right, paste, and tap <strong>Import</strong>. A “TFI Movies” row shows up on Home.</li>
-  </ol>
-  <div class="combine">
-    <textarea id="mine" rows="4" spellcheck="false" placeholder="Paste what Nuvio's Copy icon copied" aria-label="Your Nuvio collections"></textarea>
-    <div class="acts"><button type="button" class="btn primary" id="combine">Add TFI and copy</button><button type="button" class="btn" id="copytfi">Copy TFI collection only</button></div>
-    <p class="nmsg" id="nmsg" role="status"></p>
-  </div>
-  <p class="hint">Why the extra step? Nuvio's Paste replaces <em>all</em> your collections with what you paste, so your own ones have to go along. No collections yet? Use <b>Copy TFI collection only</b>. On a Nuvio TV it's simpler: <b>Addons → Collections → Import → From URL</b> with <code>${esc(base)}/nuvio-collections.json</code>, which adds it next to your own. The covers keep themselves up to date either way. A catalog you switched off in your addon shows up as an empty tile.</p>
-</section>
-
 <section id="faq" class="faq">
   <p class="eyebrow">FAQ</p>
   <h2>Questions</h2>
   <details><summary>Does TFI Movies play videos?</summary><p>No. It adds catalogs: posters, details, ratings and trailers for what's new on Indian OTT. It doesn't host or link to any video. Watch on the streaming service that has the title.</p></details>
   <details><summary>How fresh are the catalogs?</summary><p>They update every morning (India time) from TMDB's streaming data, plus OTT release news from Sacnilk, 123telugu and 91mobiles, so new arrivals show up even before TMDB catches up.</p></details>
   <details><summary>Does every title have Telugu audio?</summary><p>Most probably, but it isn't guaranteed. See <a href="#check">how the Telugu check works</a>: a title goes in when Telugu is listed, or when JustWatch knows it but no service lists its audio languages yet. Whether you get the Telugu track when you play a title depends on your stream addons and their settings, not on TFI Movies. Found one without Telugu? <a href="${REPO_URL}/issues" target="_blank" rel="noopener">Tell us on GitHub</a>.</p></details>
-  <details><summary>Can I hide catalogs or change their order?</summary><p>Yes. Under <a href="#customize">Customize</a>, switch off the ones you don't want and use the arrows to set their order, then install. Already installed? Open TFI Movies on Stremio's Addons page, press <b>Configure</b>, change your choice and install again.</p></details>
-  <details><summary>Does it work in Nuvio?</summary><p>Yes. Nuvio installs the same addon link, and there's a <a href="#nuvio">ready-made collection</a> to import: a tile for each catalog, with a cover made from the newest titles in its list.</p></details>
+  <details><summary>Can I hide catalogs or change their order?</summary><p>Yes. Under <a href="#customize">Catalogs</a>, switch off the ones you don't want and use the arrows to set their order, then install. Already installed? Open TFI Movies on Stremio's Addons page, press <b>Configure</b>, change your choice and install again.</p></details>
+  <details><summary>Does it work in Nuvio?</summary><p>Yes. Nuvio installs the same catalogs (use <b>Install in Nuvio</b>, or paste the addon link on Nuvio's Addons page). There's also a <a href="#nuvio">Nuvio collection</a> that shows them as tiles on Nuvio's Home, with covers made from the newest titles in each list.</p></details>
+  <details><summary>What's the difference between catalogs and the collection?</summary><p>The catalogs are the lists of titles: Stremio and Nuvio both show them. The collection is a Nuvio-only extra that arranges those catalogs as a row of tiles with live covers. It needs the catalogs installed, and doesn't add any titles of its own.</p></details>
   <details><summary>Was this made with AI?</summary><p>Yes, partly. The code, this page and the rules for the catalogs were written with the help of AI. The catalogs are put together automatically every day, with no person checking each title, so a title, date or audio language can be wrong. Spot a mistake? <a href="${REPO_URL}/issues" target="_blank" rel="noopener">Tell us on GitHub</a>.</p></details>
   <details><summary>Is it free? Can I see how it works?</summary><p>Yes, it's free and needs no account. The code is open source on <a href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a>.</p></details>
 </section>
@@ -1134,6 +1156,7 @@ function render() {
   $("#murl").value = m;
   all(".js-install").forEach(function (a) { a.href = "stremio://" + HOST + cfg + "/manifest.json"; });
   all(".js-web").forEach(function (a) { a.href = "https://web.stremio.com/#/addons?addon=" + encodeURIComponent(m); });
+  all(".js-nuvio").forEach(function (a) { a.href = "nuvio://" + HOST + cfg + "/manifest.json"; });
   all(".js-count").forEach(function (e) { e.textContent = order.length; });
   all("#cats input").forEach(function (b) { b.checked = order.indexOf(b.value) >= 0; b.closest(".cat").classList.toggle("on", b.checked); });
   all("#presets button").forEach(function (b) { var on = sameSet(PRESETS[b.getAttribute("data-p")], order); b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
@@ -1187,33 +1210,65 @@ function copyText(text, ok, fail) {
 }
 function say(text, kind) { var m = $("#nmsg"); m.textContent = text; m.className = "nmsg" + (kind ? " " + kind : ""); }
 var tfiIds = TFI.map(function (c) { return c.id; });
-$("#combine").addEventListener("click", function () {
-  var raw = $("#mine").value.replace(/^\\uFEFF/, "").trim(), mine;
-  if (!raw) return say("Paste your collections from Nuvio first (step 2). No collections yet? Use “Copy TFI collection only”.", "err");
-  try { mine = JSON.parse(raw); } catch (e) { mine = null; }
-  if (!Array.isArray(mine)) return say("That isn't what Nuvio's Copy icon gives. In Nuvio tap Copy again and paste the whole text here.", "err");
+// The user's collections (Nuvio's Copy output) plus TFI Movies, or null when the text isn't that.
+function addTfi(raw) {
+  var mine;
+  try { mine = JSON.parse(String(raw || "").replace(/^\\uFEFF/, "").trim()); } catch (e) { return null; }
+  if (!Array.isArray(mine)) return null;
   var kept = mine.filter(function (c) { return c && tfiIds.indexOf(c.id) < 0; });
-  var text = JSON.stringify(kept.concat(TFI));
-  copyText(text, function () {
-    say("Copied: your " + kept.length + " collection" + (kept.length === 1 ? "" : "s") + " plus TFI Movies. Now paste it in Nuvio (step 3).", "ok");
-  }, function () {
-    $("#mine").value = text; $("#mine").select();
-    say("Couldn't copy by itself. The combined text is in the box now: copy it from there.", "err");
+  return { text: JSON.stringify(kept.concat(TFI)), count: kept.length };
+}
+var copied = function (r) { return "Copied: your " + r.count + " collection" + (r.count === 1 ? "" : "s") + " plus TFI Movies. Now paste it in Nuvio (step 4)."; };
+var pending = null; // a result that couldn't be copied without another tap
+function manual(why) {
+  $("#manual").open = true;
+  say(why + " Paste it in the box below instead.", "err");
+  $("#mine").focus();
+}
+// Step 3, one tap: read what Nuvio's Copy icon put on the clipboard, add TFI Movies, put the result back.
+$("#addtfi").addEventListener("click", function () {
+  $("#copyresult").hidden = true;
+  if (!(navigator.clipboard && navigator.clipboard.readText && window.isSecureContext)) return manual("This browser can't read what you copied.");
+  navigator.clipboard.readText().then(function (raw) {
+    if (!String(raw || "").trim()) return say("Nothing copied yet: in Nuvio tap the Copy icon first (step 2).", "err");
+    var r = addTfi(raw);
+    if (!r) return say("What you copied isn't Nuvio's collections. In Nuvio tap the Copy icon again (step 2), then come back and tap Add TFI Movies.", "err");
+    copyText(r.text, function () { say(copied(r), "ok"); }, function () {
+      pending = r; // the browser wants a fresh tap before it lets the page copy
+      $("#copyresult").hidden = false;
+      say("Ready: tap Copy result.", "ok");
+    });
+  }, function () { manual("The browser didn't let the page read what you copied."); });
+});
+$("#copyresult").addEventListener("click", function () {
+  if (!pending) return;
+  var r = pending;
+  copyText(r.text, function () { pending = null; $("#copyresult").hidden = true; say(copied(r), "ok"); }, function () {
+    $("#manual").open = true; $("#mine").value = r.text; $("#mine").select();
+    say("Couldn't copy. The result is in the box below: copy it from there.", "err");
+  });
+});
+$("#combine").addEventListener("click", function () {
+  var raw = $("#mine").value;
+  if (!raw.trim()) return say("Paste your collections from Nuvio in the box first.", "err");
+  var r = addTfi(raw);
+  if (!r) return say("That isn't what Nuvio's Copy icon gives. In Nuvio tap Copy again and paste the whole text here.", "err");
+  copyText(r.text, function () { say(copied(r), "ok"); }, function () {
+    $("#mine").value = r.text; $("#mine").select();
+    say("Couldn't copy by itself. The result is in the box now: copy it from there.", "err");
   });
 });
 $("#copytfi").addEventListener("click", function () {
   copyText(JSON.stringify(TFI), function () {
-    say("Copied the TFI collection. Pasting it in Nuvio replaces any collections you have there.", "ok");
+    say("Copied the TFI collection. Now paste it in Nuvio (step 4). It replaces any collections you have there.", "ok");
   }, function () { say("Couldn't copy. Open " + BASE + "/nuvio-collections.json and copy everything there.", "err"); });
 });
-all(".js-copy").forEach(function (b) {
-  b.addEventListener("click", function () {
-    var input = $("#murl"), label = b.getAttribute("data-label");
-    var done = function () { b.textContent = "Copied!"; setTimeout(function () { b.textContent = label; }, 1600); };
-    var fallback = function () { input.select(); document.execCommand("copy"); done(); };
-    if (navigator.clipboard) navigator.clipboard.writeText(input.value).then(done, fallback); else fallback();
-  });
-});
+function copyButton(b, value) {
+  var label = b.getAttribute("data-label");
+  copyText(value(), function () { b.textContent = "Copied!"; setTimeout(function () { b.textContent = label; }, 1600); }, function () { b.textContent = "Couldn't copy"; });
+}
+all(".js-copy").forEach(function (b) { b.addEventListener("click", function () { copyButton(b, function () { return $("#murl").value; }); }); });
+all(".js-copy-all").forEach(function (b) { b.addEventListener("click", function () { copyButton(b, function () { return BASE + "/manifest.json"; }); }); });
 render();
 })();
 </script>
