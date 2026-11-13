@@ -48,6 +48,21 @@ Each holds up to 100 series on the same platforms. A series is ranked by when it
 
 The addon shows the same eight catalogs (movies under Movies, series under Series): the first 100 titles in each come straight from the TMDB lists, and scrolling further loads older ones. Pick catalogs and their order on the home page (or start from a preset: Telugu originals, dubbed only, movies only, series only), or name them in the link, in the order Stremio should show them: `https://tfi-movies.vercel.app/te,south,te-tv/manifest.json` (keys `te`, `south`, `en`, `hi` for movies and `te-tv`, `south-tv`, `en-tv`, `hi-tv` for series). Stremio's *Configure* button opens the picker again. Movies and series use IMDb IDs where they have one, so other Stremio addons (subtitles, for example) work with them as usual.
 
+## Nuvio collection
+
+[Nuvio](https://github.com/NuvioMedia/NuvioTV) installs the same addon link, and can show the catalogs as a collection: a "TFI Movies" row with one tile per catalog. Install the addon in Nuvio with all eight catalogs on, then open **Addons → Collections → Import → From URL** and enter `https://tfi-movies.vercel.app/nuvio-collections.json`.
+
+Each tile's art is drawn from its list, so it changes when the list does, without importing again:
+
+| Link | What it is |
+|---|---|
+| `/art/<key>/cover.webp` | The tile: the three newest posters, the catalog's name and how many titles it holds |
+| `/art/<key>/focus.gif` | Played while the tile is selected: the same tile, turning through the five newest posters |
+| `/art/<key>/backdrop.webp` | The newest title's backdrop, for Nuvio's big preview |
+| `/art/<key>/logo.webp` | The catalog's name as a title logo |
+
+`<key>` is a catalog key from the addon link (`te`, `south-tv`, …). Apps keep each image for an hour and then ask again; the image's `ETag` tells them whether it changed.
+
 ## Run your own copy
 
 1. Fork this repo and import it into [Vercel](https://vercel.com) (free Hobby plan is enough).
@@ -96,9 +111,12 @@ Set these in Vercel under **Settings → Environment Variables**, then redeploy.
 
 | Path | Purpose |
 |---|---|
-| `api/index.js` | Movie and series list sync, review page, install page and Stremio addon |
+| `api/index.js` | Movie and series list sync, review page, install page, Stremio addon and Nuvio collection |
 | `lib/news.js` | Reads and matches OTT release news (including when it reports Telugu audio); the possibly-missing check |
+| `lib/art.js` | Draws the Nuvio collection's covers, focus GIFs, backdrops and logos |
+| `lib/fonts.js` | The typeface on the covers: [Outfit](https://github.com/Outfitio/Outfit-Fonts), SIL Open Font License 1.1 |
 | `lib/logo.js` | Addon logo (served at `/logo.png`) |
+| `package.json` | The two packages `lib/art.js` draws with: `@napi-rs/canvas` and `gifenc` |
 | `vercel.json` | Sends every request to `api/index.js`, and schedules the daily `/sync` and `/sync-series` |
 
 ## AI disclaimer
