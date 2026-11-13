@@ -952,8 +952,13 @@ h3{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;c
 .hint{color:var(--dim);font-size:12px;margin:8px 0 0}
 .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0 0 28px}
 .tiles img{display:block;width:100%;height:auto;aspect-ratio:16/9;border-radius:12px;border:1px solid var(--line);background:var(--card)}
-.copy.wide{max-width:560px;margin-top:0}
-.copy .btn{border:0;border-left:1px solid var(--line);border-radius:0 9px 9px 0;font-size:14px}
+.combine{max-width:640px}
+.combine textarea{display:block;width:100%;min-height:96px;resize:vertical;background:rgba(0,0,0,.35);border:1px solid var(--line2);border-radius:10px;color:var(--fg);padding:10px 12px;font:12px/1.5 ui-monospace,Consolas,monospace}
+.combine .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.nmsg{font-size:14px;margin:10px 0 0;min-height:1.4em;color:var(--mut)}
+.nmsg.ok{color:var(--ok)}.nmsg.err{color:var(--no)}
+#nuvio .hint{max-width:640px;font-size:13px;line-height:1.6;margin-top:14px}
+#nuvio .hint code{word-break:break-all;color:var(--mut)}
 sup{line-height:0}
 .ast{color:var(--acc2);text-decoration:none;font-weight:700;padding:0 2px}
 .ast:hover{color:var(--fg)}
@@ -1078,11 +1083,15 @@ footer a{color:var(--mut)}
   <div class="tiles">${ALL_DEFS.map((d) => `<img src="/art/${esc(d.key)}/cover.webp" data-focus="/art/${esc(d.key)}/focus.gif" width="320" height="180" loading="lazy" alt="Cover of ${esc(d.name)}">`).join("")}</div>
   <ol class="steps">
     <li><b>Install the addon in Nuvio</b>Copy the addon link under <a href="#customize">Customize</a> and add it on Nuvio's Addons page. Keep all ${ALL_DEFS.length} catalogs on.</li>
-    <li><b>Import the collection</b>In Nuvio open <strong>Addons → Collections → Import</strong>, pick <strong>From URL</strong> and enter the link below.</li>
-    <li><b>Open Home</b>A “TFI Movies” row shows up with a tile for each catalog. The covers keep themselves up to date.</li>
+    <li><b>Copy your collections</b>In Nuvio open <strong>Settings → Layout → Collections</strong> and tap the <strong>Copy</strong> icon at the top right. Paste it in the box below and tap <strong>Add TFI and copy</strong>.</li>
+    <li><b>Paste it back into Nuvio</b>On the same Nuvio screen tap the <strong>Paste</strong> icon at the top right, paste, and tap <strong>Import</strong>. A “TFI Movies” row shows up on Home.</li>
   </ol>
-  <div class="copy wide"><input id="nurl" value="${esc(base)}/nuvio-collections.json" readonly aria-label="Nuvio collection link"><button type="button" class="btn js-copy-nuvio" data-for="#nurl" data-label="Copy link">Copy link</button></div>
-  <p class="hint">Importing from a file instead? <a href="/nuvio-collections.json" download="nuvio-collections.json">Download nuvio-collections.json</a>. A catalog you switched off in your addon shows up as an empty tile.</p>
+  <div class="combine">
+    <textarea id="mine" rows="4" spellcheck="false" placeholder="Paste what Nuvio's Copy icon copied" aria-label="Your Nuvio collections"></textarea>
+    <div class="acts"><button type="button" class="btn primary" id="combine">Add TFI and copy</button><button type="button" class="btn" id="copytfi">Copy TFI collection only</button></div>
+    <p class="nmsg" id="nmsg" role="status"></p>
+  </div>
+  <p class="hint">Why the extra step? Nuvio's Paste replaces <em>all</em> your collections with what you paste, so your own ones have to go along. No collections yet? Use <b>Copy TFI collection only</b>. On a Nuvio TV it's simpler: <b>Addons → Collections → Import → From URL</b> with <code>${esc(base)}/nuvio-collections.json</code>, which adds it next to your own. The covers keep themselves up to date either way. A catalog you switched off in your addon shows up as an empty tile.</p>
 </section>
 
 <section id="faq" class="faq">
@@ -1162,9 +1171,44 @@ all(".tiles img").forEach(function (img) { // the focus animation, on hover
   img.addEventListener("mouseenter", function () { img.src = img.getAttribute("data-focus"); });
   img.addEventListener("mouseleave", function () { img.src = still; });
 });
-all(".js-copy,.js-copy-nuvio").forEach(function (b) {
+// Nuvio's phone app imports only by pasting, and an import replaces all collections: so the TFI collection is
+// added to the user's own (what Nuvio's Copy icon gives), replacing an earlier copy of it, and that is copied back.
+var TFI = ${js(nuvioCollection(base))};
+function copyText(text, ok, fail) {
+  var fallback = function () {
+    var t = document.createElement("textarea");
+    t.value = text; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
+    document.body.appendChild(t); t.select(); t.setSelectionRange(0, text.length);
+    var done = false; try { done = document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(t);
+    if (done) ok(); else fail();
+  };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(ok, fallback); else fallback();
+}
+function say(text, kind) { var m = $("#nmsg"); m.textContent = text; m.className = "nmsg" + (kind ? " " + kind : ""); }
+var tfiIds = TFI.map(function (c) { return c.id; });
+$("#combine").addEventListener("click", function () {
+  var raw = $("#mine").value.replace(/^\\uFEFF/, "").trim(), mine;
+  if (!raw) return say("Paste your collections from Nuvio first (step 2). No collections yet? Use “Copy TFI collection only”.", "err");
+  try { mine = JSON.parse(raw); } catch (e) { mine = null; }
+  if (!Array.isArray(mine)) return say("That isn't what Nuvio's Copy icon gives. In Nuvio tap Copy again and paste the whole text here.", "err");
+  var kept = mine.filter(function (c) { return c && tfiIds.indexOf(c.id) < 0; });
+  var text = JSON.stringify(kept.concat(TFI));
+  copyText(text, function () {
+    say("Copied: your " + kept.length + " collection" + (kept.length === 1 ? "" : "s") + " plus TFI Movies. Now paste it in Nuvio (step 3).", "ok");
+  }, function () {
+    $("#mine").value = text; $("#mine").select();
+    say("Couldn't copy by itself. The combined text is in the box now: copy it from there.", "err");
+  });
+});
+$("#copytfi").addEventListener("click", function () {
+  copyText(JSON.stringify(TFI), function () {
+    say("Copied the TFI collection. Pasting it in Nuvio replaces any collections you have there.", "ok");
+  }, function () { say("Couldn't copy. Open " + BASE + "/nuvio-collections.json and copy everything there.", "err"); });
+});
+all(".js-copy").forEach(function (b) {
   b.addEventListener("click", function () {
-    var input = $(b.getAttribute("data-for") || "#murl"), label = b.getAttribute("data-label");
+    var input = $("#murl"), label = b.getAttribute("data-label");
     var done = function () { b.textContent = "Copied!"; setTimeout(function () { b.textContent = label; }, 1600); };
     var fallback = function () { input.select(); document.execCommand("copy"); done(); };
     if (navigator.clipboard) navigator.clipboard.writeText(input.value).then(done, fallback); else fallback();
