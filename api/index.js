@@ -1,6 +1,8 @@
 // TFI Movies — keeps 8 public TMDB lists up to date (daily): 4 of movies, 4 of web series. It serves the
-// same catalogs as a Stremio addon (backup). Runs as a single Vercel serverless function.
+// same catalogs as a Stremio addon (backup), and as a Nuvio collection with covers drawn from each list.
+// Runs as a single Vercel serverless function.
 
+import { createHash } from "node:crypto";
 import { LOGO_PNG_BASE64 } from "../lib/logo.js";
 import { fetchNews, matchNews, matchSeriesNews, possiblyMissing, reviewHtml } from "../lib/news.js";
 
@@ -650,7 +652,7 @@ function manifest(base, keys = ALL_KEYS) {
   const types = [...new Set(defs.map((d) => (d.media === "tv" ? "series" : "movie")))];
   return {
     id: "community.tfi.movies",
-    version: "2.7.1",
+    version: "2.8.0",
     name: "TFI Movies",
     description: "Movies and web series that most probably have Telugu audio, new on Indian OTT: the latest Telugu releases, plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Whether you get the Telugu track depends on your stream addons and their settings. Refreshed every day. Metadata by TMDB. Made with the help of AI.",
     logo: `${base}/tfi-logo.png`,
@@ -662,16 +664,59 @@ function manifest(base, keys = ALL_KEYS) {
   };
 }
 
+// A catalog's titles from `skip` on. The first page is the TMDB list itself, so the addon shows what the list shows.
+async function catalogItems(def, skip = 0) {
+  let items = null;
+  if (skip === 0) items = await listItems(def).then((l) => (l && l.length ? l.filter((i) => (i.media_type || "movie") === def.media) : null)).catch(() => null);
+  return items || (def.media === "tv" ? discoverSeries(def, skip, PAGE_SIZE) : discover(def, skip, PAGE_SIZE));
+}
+
 async function catalog(type, id, extra) {
   const def = (type === "series" ? SERIES : CATALOGS)[id];
   if (!def) return null;
   const skipRaw = Number(extra.get("skip") || 0);
   const skip = Number.isFinite(skipRaw) ? Math.max(0, Math.floor(skipRaw)) : 0;
-  let items = null;
-  if (skip === 0) items = await listItems(def).then((l) => (l && l.length ? l.filter((i) => (i.media_type || "movie") === def.media) : null)).catch(() => null);
-  if (!items) items = def.media === "tv" ? await discoverSeries(def, skip, PAGE_SIZE) : await discover(def, skip, PAGE_SIZE);
+  const items = await catalogItems(def, skip);
   const ids = await mapLimit(items, CONCURRENCY, (m) => imdbId(m.id, def.media));
   return { metas: items.map((m, i) => toPreview(m, ids[i], type)) };
+}
+
+// ---------- Nuvio collection ----------
+// /nuvio-collections.json is a collection Nuvio can import: one folder per catalog. Each folder's art is at
+// /art/<catalog key>/cover.webp (the tile), focus.gif (played while the tile has focus), backdrop.webp and logo.webp
+// (Nuvio's big preview of the tile). The art is drawn from the list's newest titles (lib/art.js), so it changes
+// when the list does. The links stay the same, so nobody has to import again.
+const ART_FILES = { "cover.webp": "image/webp", "focus.gif": "image/gif", "backdrop.webp": "image/webp", "logo.webp": "image/webp" };
+const ART_LANGS = { te: ["Telugu", "#a855f7"], south: ["South", "#34d399"], en: ["English", "#38bdf8"], hi: ["Hindi", "#fbbf24"] }; // words and colour on the tile
+// Apps keep an image for an hour, then ask again; Nuvio swaps it when the ETag is new. No stale-while-revalidate
+// here: it would hand out yesterday's cover once more after each sync.
+const ART_CACHE = "public, max-age=3600, s-maxage=3600, stale-if-error=604800";
+
+async function artSpec(def) {
+  const items = await catalogItems(def);
+  const [title, accent] = ART_LANGS[def.key.replace(/-tv$/, "")];
+  const top = items.find((m) => m.backdrop_path);
+  return {
+    title, accent, kind: def.media === "tv" ? "Series" : "Movies", tag: def.dubbed ? "DUBBED IN TELUGU" : "MADE IN TELUGU", count: items.length,
+    posters: items.filter((m) => m.poster_path).slice(0, 8).map((m) => `${IMG}w342${m.poster_path}`), // the fan shows 3, the GIF 5; the rest are spares
+    backdrop: top ? `${IMG}w1280${top.backdrop_path}` : null,
+  };
+}
+
+function nuvioCollection(base) {
+  return [{
+    id: "community.tfi.movies", title: "TFI Movies", backdropImageUrl: null, pinToTop: false, focusGlowEnabled: true, viewMode: "TABBED_GRID", showAllTab: true,
+    folders: ALL_DEFS.map((d) => {
+      const source = { addonId: manifest(base).id, type: d.media === "tv" ? "series" : "movie", catalogId: d.id };
+      const art = `${base}/art/${d.key}`;
+      return {
+        id: `community.tfi.movies.${d.key}`, title: d.name, tileShape: "LANDSCAPE", hideTitle: true, coverEmoji: null,
+        coverImageUrl: `${art}/cover.webp`, focusGifUrl: `${art}/focus.gif`, focusGifEnabled: true,
+        heroBackdropUrl: `${art}/backdrop.webp`, titleLogoUrl: `${art}/logo.webp`, heroVideoUrl: null,
+        sources: [{ provider: "addon", ...source }], catalogSources: [source], // older Nuvio versions read catalogSources
+      };
+    }),
+  }];
 }
 
 async function meta(id) {
@@ -905,6 +950,10 @@ h3{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;c
 .copy{display:flex;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.35);margin-top:14px}
 .copy input{flex:1;min-width:0;background:transparent;border:0;color:var(--mut);padding:9px 12px;font:12px ui-monospace,Consolas,monospace}
 .hint{color:var(--dim);font-size:12px;margin:8px 0 0}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0 0 28px}
+.tiles img{display:block;width:100%;height:auto;aspect-ratio:16/9;border-radius:12px;border:1px solid var(--line);background:var(--card)}
+.copy.wide{max-width:560px;margin-top:0}
+.copy .btn{border:0;border-left:1px solid var(--line);border-radius:0 9px 9px 0;font-size:14px}
 sup{line-height:0}
 .ast{color:var(--acc2);text-decoration:none;font-weight:700;padding:0 2px}
 .ast:hover{color:var(--fg)}
@@ -948,6 +997,7 @@ footer a{color:var(--mut)}
   .lead{margin-left:auto;margin-right:auto}.ctas,.stats{justify-content:center}
   .config{grid-template-columns:1fr}.panel{position:static}
   .checks,.steps{grid-template-columns:1fr}
+  .tiles{grid-template-columns:repeat(2,1fr)}
   nav a:not(.gh){display:none}
   body{padding-bottom:84px}
   .mbar{display:flex;position:fixed;left:12px;right:12px;bottom:12px;z-index:30;align-items:center;justify-content:space-between;gap:12px;padding:10px 10px 10px 16px;
@@ -958,7 +1008,7 @@ footer a{color:var(--mut)}
 </style></head><body>
 <header class="top"><div class="wrap">
   <a class="brand" href="/"><img src="/tfi-logo.png" alt="">TFI Movies</a>
-  <nav><a href="#customize">Customize</a><a href="#check">Telugu check</a><a href="#install">Install</a><a href="#faq">FAQ</a><a class="gh" href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a></nav>
+  <nav><a href="#customize">Customize</a><a href="#check">Telugu check</a><a href="#install">Install</a><a href="#nuvio">Nuvio</a><a href="#faq">FAQ</a><a class="gh" href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a></nav>
 </div></header>
 
 <main class="wrap">
@@ -1021,6 +1071,20 @@ footer a{color:var(--mut)}
   <div class="chips">${PLATFORM_NAMES.map((p) => `<span>${esc(p)}</span>`).join("")}</div>
 </section>
 
+<section id="nuvio">
+  <p class="eyebrow">Nuvio</p>
+  <h2>Add it to Nuvio as a collection</h2>
+  <p class="sub">Use Nuvio? Get every TFI catalog as a row of tiles. Each cover shows the newest titles in its list and changes when the list does, and it comes alive when you select it.</p>
+  <div class="tiles">${ALL_DEFS.map((d) => `<img src="/art/${esc(d.key)}/cover.webp" data-focus="/art/${esc(d.key)}/focus.gif" width="320" height="180" loading="lazy" alt="Cover of ${esc(d.name)}">`).join("")}</div>
+  <ol class="steps">
+    <li><b>Install the addon in Nuvio</b>Copy the addon link under <a href="#customize">Customize</a> and add it on Nuvio's Addons page. Keep all ${ALL_DEFS.length} catalogs on.</li>
+    <li><b>Import the collection</b>In Nuvio open <strong>Addons → Collections → Import</strong>, pick <strong>From URL</strong> and enter the link below.</li>
+    <li><b>Open Home</b>A “TFI Movies” row shows up with a tile for each catalog. The covers keep themselves up to date.</li>
+  </ol>
+  <div class="copy wide"><input id="nurl" value="${esc(base)}/nuvio-collections.json" readonly aria-label="Nuvio collection link"><button type="button" class="btn js-copy-nuvio" data-for="#nurl" data-label="Copy link">Copy link</button></div>
+  <p class="hint">Importing from a file instead? <a href="/nuvio-collections.json" download="nuvio-collections.json">Download nuvio-collections.json</a>. A catalog you switched off in your addon shows up as an empty tile.</p>
+</section>
+
 <section id="faq" class="faq">
   <p class="eyebrow">FAQ</p>
   <h2>Questions</h2>
@@ -1028,6 +1092,7 @@ footer a{color:var(--mut)}
   <details><summary>How fresh are the catalogs?</summary><p>They update every morning (India time) from TMDB's streaming data, plus OTT release news from Sacnilk, 123telugu and 91mobiles, so new arrivals show up even before TMDB catches up.</p></details>
   <details><summary>Does every title have Telugu audio?</summary><p>Most probably, but it isn't guaranteed. See <a href="#check">how the Telugu check works</a>: a title goes in when Telugu is listed, or when JustWatch knows it but no service lists its audio languages yet. Whether you get the Telugu track when you play a title depends on your stream addons and their settings, not on TFI Movies. Found one without Telugu? <a href="${REPO_URL}/issues" target="_blank" rel="noopener">Tell us on GitHub</a>.</p></details>
   <details><summary>Can I hide catalogs or change their order?</summary><p>Yes. Under <a href="#customize">Customize</a>, switch off the ones you don't want and use the arrows to set their order, then install. Already installed? Open TFI Movies on Stremio's Addons page, press <b>Configure</b>, change your choice and install again.</p></details>
+  <details><summary>Does it work in Nuvio?</summary><p>Yes. Nuvio installs the same addon link, and there's a <a href="#nuvio">ready-made collection</a> to import: a tile for each catalog, with a cover made from the newest titles in its list.</p></details>
   <details><summary>Was this made with AI?</summary><p>Yes, partly. The code, this page and the rules for the catalogs were written with the help of AI. The catalogs are put together automatically every day, with no person checking each title, so a title, date or audio language can be wrong. Spot a mistake? <a href="${REPO_URL}/issues" target="_blank" rel="noopener">Tell us on GitHub</a>.</p></details>
   <details><summary>Is it free? Can I see how it works?</summary><p>Yes, it's free and needs no account. The code is open source on <a href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a>.</p></details>
 </section>
@@ -1092,9 +1157,14 @@ $("#order").addEventListener("click", function (e) {
   if (next) next.focus();
 });
 $("#resetorder").addEventListener("click", function () { order = defaultOrder(); render(); });
-all(".js-copy").forEach(function (b) {
+all(".tiles img").forEach(function (img) { // the focus animation, on hover
+  var still = img.getAttribute("src");
+  img.addEventListener("mouseenter", function () { img.src = img.getAttribute("data-focus"); });
+  img.addEventListener("mouseleave", function () { img.src = still; });
+});
+all(".js-copy,.js-copy-nuvio").forEach(function (b) {
   b.addEventListener("click", function () {
-    var input = $("#murl"), label = b.getAttribute("data-label");
+    var input = $(b.getAttribute("data-for") || "#murl"), label = b.getAttribute("data-label");
     var done = function () { b.textContent = "Copied!"; setTimeout(function () { b.textContent = label; }, 1600); };
     var fallback = function () { input.select(); document.execCommand("copy"); done(); };
     if (navigator.clipboard) navigator.clipboard.writeText(input.value).then(done, fallback); else fallback();
@@ -1123,10 +1193,10 @@ function send(res, status, body, cacheSeconds, type = "application/json; charset
   res.setHeader("Content-Type", type);
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "*");
-  for (const [k, v] of Object.entries(headers)) res.setHeader(k, v);
   res.setHeader("Cache-Control", cacheSeconds
     ? `public, max-age=${Math.min(cacheSeconds, 3600)}, s-maxage=${cacheSeconds}, stale-while-revalidate=86400, stale-if-error=604800`
     : "no-store");
+  for (const [k, v] of Object.entries(headers)) res.setHeader(k, v);
   res.end(Buffer.isBuffer(body) || typeof body === "string" ? body : JSON.stringify(body, null, typeof body === "object" && body?.lists ? 2 : 0));
 }
 
@@ -1162,6 +1232,20 @@ export default async function handler(req, res) {
     }
     if (path === "/logo.png" || path === "/tfi-logo.png") return send(res, 200, Buffer.from(LOGO_PNG_BASE64, "base64"), 604800, "image/png");
 
+    // Nuvio collection: the file to import, and each folder's art
+    if (path === "/nuvio-collections.json") return send(res, 200, JSON.stringify(nuvioCollection(base), null, 2), 3600);
+    let m = path.match(/^\/art\/([a-z-]+)\/([a-z]+\.[a-z]+)$/);
+    if (m) {
+      const def = ALL_DEFS.find((d) => d.key === m[1]);
+      if (!def || !ART_FILES[m[2]]) return send(res, 404, { error: "not found" }, 0);
+      const art = await import("../lib/art.js"); // loaded only here: the drawing library is big, and nothing else needs it
+      const spec = await artSpec(def);
+      // The ETag names what the image is drawn from, so it changes exactly when the top of the list does.
+      const headers = { "Cache-Control": ART_CACHE, ETag: `"${createHash("sha1").update(JSON.stringify([art.VERSION, m[2], spec])).digest("base64url")}"` };
+      if (req.headers["if-none-match"] === headers.ETag) return send(res, 304, "", 0, ART_FILES[m[2]], headers);
+      return send(res, 200, await art[m[2].split(".")[0]](spec), 0, ART_FILES[m[2]], headers);
+    }
+
     // Daily list sync: /sync for movies, /sync-series for series (Vercel cron calls both; you can also open them in a browser)
     if (path === "/sync" || path === "/sync-series") {
       if (CRON_SECRET && req.headers.authorization !== `Bearer ${CRON_SECRET}` && url.searchParams.get("key") !== CRON_SECRET)
@@ -1196,7 +1280,7 @@ export default async function handler(req, res) {
       return send(res, 200, tokenPage(t), 0, "text/html; charset=utf-8", { "Set-Cookie": "tmdb_rt=; Path=/; Max-Age=0" });
     }
 
-    let m = path.match(/^\/catalog\/(movie|series)\/([^/]+?)(?:\/([^/]+))?\.json$/);
+    m = path.match(/^\/catalog\/(movie|series)\/([^/]+?)(?:\/([^/]+))?\.json$/);
     if (m) {
       const body = await catalog(m[1], decodeSeg(m[2]), new URLSearchParams(m[3] || ""));
       if (!body) return send(res, 404, { error: "unknown catalog", metas: [] }, 0);
