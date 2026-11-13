@@ -1,8 +1,12 @@
 {
   "name": "tfi-movies",
-  "version": "1.3.0",
+  "version": "2.8.0",
   "private": true,
   "description": "TFI Movies: Stremio catalogs of the latest Telugu, Telugu-dubbed, English and Hindi movies and web series on Indian OTT, TMDB metadata",
   "type": "module",
-  "engines": { "node": ">=18" }
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@napi-rs/canvas": "1.1.1",
+    "gifenc": "1.0.3"
+  }
 }
