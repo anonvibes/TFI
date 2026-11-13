@@ -50,7 +50,10 @@ The addon shows the same eight catalogs (movies under Movies, series under Serie
 
 ## Nuvio collection
 
-[Nuvio](https://github.com/NuvioMedia/NuvioTV) installs the same addon link, and can show the catalogs as a collection: a "TFI Movies" row with one tile per catalog. Install the addon in Nuvio with all eight catalogs on, then open **Addons → Collections → Import → From URL** and enter `https://tfi-movies.vercel.app/nuvio-collections.json`.
+[Nuvio](https://github.com/NuvioMedia/NuvioTV) installs the same addon link, and can show the catalogs as a collection: a "TFI Movies" row with one tile per catalog. Install the addon in Nuvio with all eight catalogs on, then:
+
+- **Phone:** Nuvio's phone app imports collections only by pasting, and the paste replaces all your collections. So in Nuvio open **Settings → Layout → Collections** and tap the Copy icon, paste that into the box in the [Nuvio section of the home page](https://tfi-movies.vercel.app/#nuvio) and tap *Add TFI and copy*, then tap Nuvio's Paste icon, paste and import. Your own collections come back along with TFI Movies.
+- **TV:** **Addons → Collections → Import → From URL** with `https://tfi-movies.vercel.app/nuvio-collections.json`. The TV app adds it next to your own collections.
 
 Each tile's art is drawn from its list, so it changes when the list does, without importing again:
 
