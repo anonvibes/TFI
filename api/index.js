@@ -709,9 +709,19 @@ async function catalog(type, id, extra) {
 // when the list does. The links stay the same, so nobody has to import again.
 const ART_FILES = { "cover.webp": "image/webp", "focus.gif": "image/gif", "backdrop.webp": "image/webp", "logo.webp": "image/webp" };
 const ART_LANGS = { te: ["Telugu", "#a855f7"], south: ["South", "#34d399"], en: ["English", "#38bdf8"], hi: ["Hindi", "#fbbf24"] }; // words and colour on the tile
-// Apps keep an image for an hour, then ask again; Nuvio swaps it when the ETag is new. No stale-while-revalidate
-// here: it would hand out yesterday's cover once more after each sync.
-const ART_CACHE = "public, max-age=3600, s-maxage=3600, stale-if-error=604800";
+// The art changes only when the lists do, at the daily syncs (Vercel crons at 00:30 and 01:30 UTC, each may run up to an
+// hour late). So apps and Vercel keep an image until 03:00 UTC (8:30 AM IST), then ask again; Nuvio swaps it when the
+// ETag is new. Nuvio's phone app (Coil, CacheControlCacheStrategy) checks with us before showing an image whose max-age
+// has run out, so with the old 1-hour max-age the tiles stayed blank for a moment on every app start (2026-11-20).
+// No stale-while-revalidate: it would hand out yesterday's cover once more after each sync.
+const ART_REFRESH_UTC_HOUR = 3;
+function artCache(now = Date.now()) {
+  const next = new Date(now);
+  next.setUTCHours(ART_REFRESH_UTC_HOUR, 0, 0, 0);
+  if (next.getTime() <= now) next.setUTCDate(next.getUTCDate() + 1);
+  const age = Math.max(300, Math.round((next.getTime() - now) / 1000));
+  return `public, max-age=${age}, s-maxage=${age}, stale-if-error=604800`;
+}
 
 async function artSpec(def) {
   const items = await catalogItems(def);
@@ -1361,7 +1371,7 @@ export default async function handler(req, res) {
       const art = await import("../lib/art.js"); // loaded only here: the drawing library is big, and nothing else needs it
       const spec = await artSpec(def);
       // The ETag names what the image is drawn from, so it changes exactly when the top of the list does.
-      const headers = { "Cache-Control": ART_CACHE, ETag: `"${createHash("sha1").update(JSON.stringify([art.VERSION, m[2], spec])).digest("base64url")}"` };
+      const headers = { "Cache-Control": artCache(), ETag: `"${createHash("sha1").update(JSON.stringify([art.VERSION, m[2], spec])).digest("base64url")}"` };
       if (req.headers["if-none-match"] === headers.ETag) return send(res, 304, "", 0, ART_FILES[m[2]], headers);
       return send(res, 200, await art[m[2].split(".")[0]](spec), 0, ART_FILES[m[2]], headers);
     }
