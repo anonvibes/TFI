@@ -535,15 +535,20 @@ async function syncLists(media = "movie") {
     const removed = current.length - currentIds.filter((id) => want.has(id)).length;
     // The list shows items in the order they were added, so when anything changes, rebuild it in ranked order.
     const unchanged = current.length === wanted.length && currentIds.length === wanted.length && currentIds.every((id, i) => id === wanted[i]);
-    let notAdded = [];
+    let notAdded = [], orderNote;
     if (!unchanged) {
-      if (current.length) {
-        // Delete the items one batch at a time, not with /clear: TMDB finishes a clear a moment later,
-        // which wiped (or refused as duplicates) the first batch added straight after it.
-        const all = current.map((i) => ({ media_type: i.media_type || "movie", media_id: i.id }));
+      // Delete the items one batch at a time, not with /clear. TMDB finishes deleting a moment later, and a batch
+      // added before then is refused as duplicates (or wiped), so wait until the list reads as empty.
+      const empty = async (items) => {
+        if (!items.length) return;
+        const all = items.map((i) => ({ media_type: i.media_type || "movie", media_id: i.id }));
         for (const c of chunks(all, 50)) await tmdb4("DELETE", `/list/${list.id}/items`, USER_TOKEN, { items: c });
-        await sleep(1500);
-      }
+        for (let i = 0; i < 10; i++) {
+          await sleep(1500);
+          const l = await tmdb4("GET", `/list/${list.id}?page=1`, USER_TOKEN).catch(() => null);
+          if (l && !(l.total_results > 0)) break;
+        }
+      };
       const add = async (ids) => {
         const failed = [];
         for (const c of chunks(ids, 50)) {
@@ -552,10 +557,26 @@ async function syncLists(media = "movie") {
         }
         return failed;
       };
-      notAdded = await add(wanted);
-      if (notAdded.length) { await sleep(2000); notAdded = await add(notAdded); } // out of order until tomorrow's rebuild
+      // The list shows items in the order they were added, so adding refused items afterwards puts them at the
+      // end: on 2026-11-20 that put the newest 50 films below the other 50. So read the list back, and rebuild it
+      // when the order is off or TMDB refused films that it may take on a second try (not the same ones again).
+      let items = current, prev = null, inOrder = false;
+      for (let tries = 0; tries < 3; tries++) {
+        if (tries) await sleep(3000);
+        await empty(items);
+        notAdded = await add(wanted);
+        items = await allPages(`/list/${list.id}`, USER_TOKEN).catch(() => []);
+        const got = items.filter((i) => (i.media_type || "movie") === media).map((i) => i.id);
+        const expect = wanted.filter((id) => !notAdded.includes(id));
+        inOrder = got.length === expect.length && got.every((id, i) => id === expect[i]);
+        const sameRefused = prev && prev.length === notAdded.length && notAdded.every((id) => prev.includes(id));
+        if (inOrder && (!notAdded.length || sameRefused)) break;
+        prev = notAdded;
+      }
+      if (notAdded.length) { await sleep(2000); notAdded = await add(notAdded); } // at the end, as TMDB refused them in place
+      if (!inOrder) orderNote = "the list may be out of order (TMDB didn't keep the order it was added in)";
     }
-    let note = notAdded.length ? `TMDB refused ${notAdded.length} ${count}: ${notAdded.join(", ")}` : undefined;
+    let note = [notAdded.length ? `TMDB refused ${notAdded.length} ${count}: ${notAdded.join(", ")}` : null, orderNote].filter(Boolean).join("; ") || undefined;
     try { await tmdb4("PUT", `/list/${list.id}`, USER_TOKEN, { name: def.name, description, public: true, sort_by: "original_order.asc" }); }
     catch (e) { note = [note, `list settings not updated: ${e.message}`].filter(Boolean).join("; "); }
     report.push({ list: def.name, url: `https://www.themoviedb.org/list/${list.id}`, [count]: wanted.length, added, removed, reordered: !unchanged,
