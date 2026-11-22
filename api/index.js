@@ -1040,16 +1040,43 @@ h3{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;c
 .more details summary{font-weight:500;font-size:14px;padding:12px 0}
 .combine textarea{display:block;width:100%;min-height:96px;resize:vertical;background:rgba(0,0,0,.35);border:1px solid var(--line2);border-radius:10px;color:var(--fg);padding:10px 12px;font:12px/1.5 ui-monospace,Consolas,monospace}
 .combine .btn{margin:10px 0 14px}
-.acct{max-width:860px;margin:0 0 22px;padding:18px;border:1px solid var(--line2);border-radius:16px;background:rgba(10,7,18,.55)}
-.acct h3{margin:0 0 4px;font-size:17px;color:var(--fg)}
-.acct .d{margin:0 0 12px;color:var(--mut);font-size:14px}
-.acct form,.acct .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.acct input[type=email],.acct input[type=password],.acct select{flex:1 1 200px;min-width:0;background:rgba(0,0,0,.35);border:1px solid var(--line2);border-radius:10px;color:var(--fg);padding:10px 12px;font:inherit;font-size:15px}
-.acct select option{background:#1a1326;color:var(--fg)}
-.acct .chk{display:flex;gap:8px;align-items:center;color:var(--mut);font-size:14px;margin:10px 0 0}
-.acct .chk[hidden]{display:none}
-.acct .fine{color:var(--dim);font-size:13px;margin:12px 0 0}
-.acct .fine a{color:var(--mut)}
+.acct{max-width:860px;margin:0 0 22px;padding:20px;border:1px solid var(--line2);border-radius:16px;background:rgba(10,7,18,.55)}
+.acct h3{margin:0 0 4px;font-size:18px;color:var(--fg)}
+.acct .d{margin:0 0 14px;color:var(--mut);font-size:14px}
+.acct .stack{display:grid;gap:10px;max-width:420px}
+.acct input[type=email],.acct input[type=password],.acct input[type=text]{width:100%;min-width:0;background:rgba(0,0,0,.35);border:1px solid var(--line2);border-radius:10px;color:var(--fg);padding:11px 12px;font:inherit;font-size:16px}
+.acct .stack .btn{width:100%}
+.acct .pw{position:relative}
+.acct .pw input{padding-right:46px}
+.acct .eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:38px;height:38px;background:none;border:0;border-radius:8px;color:var(--dim);cursor:pointer}
+.acct .eye:hover,.acct .eye[aria-pressed=true]{color:var(--fg)}
+.acct .eye svg{width:18px;height:18px}
+.acct .how{max-width:420px;margin:12px 0 0;background:transparent;border:0;border-radius:0;padding:0}
+.acct .how summary{display:block;list-style:none;cursor:pointer;padding:0;font-weight:400;font-size:13px;color:var(--mut)}
+.acct .how summary::after{content:none}
+.acct .how summary::-webkit-details-marker{display:none}
+.acct .how summary span{text-decoration:underline;text-underline-offset:3px}
+.acct .how p{margin:8px 0 0;color:var(--dim);font-size:13px}
+.acct .how a{color:var(--mut)}
+.profiles{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 6px}
+.prof{display:grid;justify-items:center;align-content:start;gap:6px;width:92px;padding:10px 4px;background:none;border:1px solid transparent;border-radius:14px;color:var(--fg);font:inherit;cursor:pointer}
+.prof:hover:not(:disabled){background:var(--card2);border-color:var(--line2)}
+.prof:disabled{cursor:default}
+.prof.locked{opacity:.45}
+.prof .av{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font-size:23px;font-weight:700;color:#fff;background:linear-gradient(135deg,#d946ef,#ec4899);text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.prof .pn{font-size:14px;max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prof .badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:rgba(52,211,153,.15);color:var(--ok)}
+.prof .badge.lk{background:var(--card2);color:var(--mut)}
+.prof.busy .av{animation:avpulse 1s ease-in-out infinite}
+@keyframes avpulse{50%{opacity:.45}}
+.acct .allrow{margin:6px 0 0}
+.acct .locknote{color:var(--mut);font-size:13px;margin:12px 0 0;max-width:620px}
+.acct .done{display:flex;gap:14px;align-items:flex-start;margin:16px 0 0;padding:14px 16px;border-radius:14px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);max-width:620px}
+.acct .done .tick{flex:none;width:36px;height:36px;border-radius:50%;background:var(--ok);color:#0a0712;display:grid;place-items:center;font-size:18px;font-weight:800}
+.acct .done b{display:block;font-size:16px;color:var(--fg)}
+.acct .done ol{margin:6px 0 0;padding-left:20px;color:var(--fg);font-size:14px}
+.acct .done .d{margin:6px 0 0}
+.acct .who{color:var(--dim);font-size:13px;margin:16px 0 0}
 .or{max-width:860px;color:var(--mut);font-size:14px;margin:0 0 10px}
 [hidden]{display:none!important}
 sup{line-height:0}
@@ -1151,20 +1178,27 @@ footer a{color:var(--mut)}
   <p class="sub">A collection doesn't add any titles: it's how Nuvio shows the catalogs above, as a “TFI Movies” row with a tile for each. Every cover is made from the newest titles in its list, changes when the list does, and comes alive when you select it.</p>
   <div class="tiles">${ALL_DEFS.map((d) => `<img src="/art/${esc(d.key)}/cover.webp" data-focus="/art/${esc(d.key)}/focus.gif" width="320" height="180" loading="lazy" alt="Cover of ${esc(d.name)}">`).join("")}</div>
   <div class="acct" id="acct">
-    <h3>Add it to your Nuvio account</h3>
-    <p class="d">Sign in with your Nuvio account and TFI Movies goes into your collections on all your devices. Your own collections stay as they are.</p>
-    <form id="acctform">
-      <input type="email" id="nemail" autocomplete="username" placeholder="Nuvio email" aria-label="Nuvio email" required>
-      <input type="password" id="npass" autocomplete="current-password" placeholder="Nuvio password" aria-label="Nuvio password" required>
-      <button type="submit" class="btn primary" id="nsignin">Sign in</button>
-    </form>
-    <div id="acctready" hidden>
-      <div class="row"><select id="nprofile" aria-label="Nuvio profile"></select><button type="button" class="btn primary" id="npush">Add TFI Movies</button></div>
-      <label class="chk" id="naddonrow" hidden><input type="checkbox" id="naddon" checked> Also install the TFI Movies catalogs on this profile (they're not installed yet)</label>
-      <p class="d" style="margin:10px 0 0">Signed in as <span id="nwho"></span>. <button type="button" class="link" id="nsignout">Sign out</button></p>
+    <h3>Add TFI Movies to your Nuvio</h3>
+    <div id="acctin">
+      <p class="d">Sign in and it's on all your devices. Your own collections stay as they are.</p>
+      <form id="acctform" class="stack">
+        <input type="email" id="nemail" autocomplete="username" placeholder="Nuvio email" aria-label="Nuvio email" required>
+        <div class="pw"><input type="password" id="npass" autocomplete="current-password" placeholder="Password" aria-label="Nuvio password" required><button type="button" class="eye" id="neye" aria-label="Show password" aria-pressed="false">${icon("M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8s-2.4 4.5-6.5 4.5S1.5 8 1.5 8zM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z")}</button></div>
+        <button type="submit" class="btn primary" id="nsignin">Sign in to Nuvio</button>
+      </form>
+      <p class="nmsg" id="smsg" role="status"></p>
+      <details class="how"><summary>🔒 Sent only to Nuvio (api.nuvio.tv). Never stored. <span>How?</span></summary>
+        <p>This box talks to Nuvio straight from your browser, through <a href="https://nuvio.tv/docs/server-api" target="_blank" rel="noopener">Nuvio's public API</a>. Your password goes to Nuvio's server only, never to TFI Movies, and nothing is saved in this browser. Closing the page signs you out. <a href="${REPO_URL}/blob/main/api/index.js" target="_blank" rel="noopener">The code for this box is public</a>.</p></details>
     </div>
-    <p class="nmsg" id="amsg" role="status"></p>
-    <p class="fine">Your password goes from this page straight to Nuvio's own server (api.nuvio.tv), through <a href="https://nuvio.tv/docs/server-api" target="_blank" rel="noopener">Nuvio's public API</a>. TFI Movies never sees or keeps it, and nothing is saved in this browser. Rather not type your password here? Use the steps below.</p>
+    <div id="acctready" hidden>
+      <p class="d" id="nhint">Tap a profile to add it.</p>
+      <div class="profiles" id="nprofiles"></div>
+      <div class="allrow" id="nallrow"><button type="button" class="btn" id="nall">Add to all profiles</button></div>
+      <p class="locknote" id="nlocknote" hidden></p>
+      <div class="done" id="ndone" hidden><div class="tick" aria-hidden="true">✓</div><div><b id="ndonetitle"></b><ol id="ndonesteps"><li>Close Nuvio fully.</li><li>Open it again: TFI Movies is on Home.</li></ol><p class="d" id="ndonenote"></p></div></div>
+      <p class="nmsg" id="amsg" role="status"></p>
+      <p class="who">Signed in as <span id="nwho"></span> · <button type="button" class="link" id="nsignout">Sign out</button></p>
+    </div>
   </div>
   <p class="or">Or by copy and paste, without signing in:</p>
   <ol class="flow">
@@ -1312,7 +1346,7 @@ function addTfi(raw) {
   if (!Array.isArray(mine)) return null;
   var out = mine.map(function (c) { var i = c ? tfiIds.indexOf(c.id) : -1; return i < 0 ? c : updateTfi(c, TFI[i]); });
   var have = mine.map(function (c) { return c && c.id; });
-  TFI.forEach(function (t) { if (have.indexOf(t.id) < 0) out.push(t); });
+  TFI.forEach(function (t) { if (have.indexOf(t.id) < 0) out.push(assign(assign({}, t), { pinToTop: true })); }); // new: pinned, shows first on Home
   var count = mine.filter(function (c) { return c && tfiIds.indexOf(c.id) < 0; }).length;
   return { text: JSON.stringify(out), count: count };
 }
@@ -1370,10 +1404,12 @@ all(".js-copy-all").forEach(function (b) { b.addEventListener("click", function 
 
 // ---- Add TFI Movies to a Nuvio account, through Nuvio's documented public API (nuvio.tv/docs/server-api) ----
 // Runs only in this browser: the password and the session go straight to api.nuvio.tv and are kept in memory only.
-// Collections are one list per profile that a push replaces whole, so the list is read first, TFI is added or updated
-// in place (addTfi), and it's read back to check. Nothing is written when the list can't be read.
+// Collections are one list per profile that a push replaces whole, so the list is read first, TFI is added (pinned)
+// or updated in place (addTfi), and it's read back to check. The TFI catalogs are installed when a profile lacks them.
+// Nuvio's API can't check a profile PIN, so PIN-locked profiles are never changed from here.
 var NV_API = ${js(NUVIO_API)}, NV_KEY = ${js(NUVIO_KEY)};
-var nv = { token: null, profiles: [], addons: null };
+var nv = { token: null, profiles: [], has: {}, addonsOk: {}, busy: null, warned: null };
+function smsg(text, kind) { var m = $("#smsg"); m.textContent = text; m.className = "nmsg" + (kind ? " " + kind : ""); }
 function amsg(text, kind) { var m = $("#amsg"); m.textContent = text; m.className = "nmsg" + (kind ? " " + kind : ""); }
 function nvCall(path, body, method) {
   var h = { apikey: NV_KEY, "Content-Type": "application/json", Accept: "application/json" };
@@ -1388,12 +1424,13 @@ function nvCall(path, body, method) {
     });
 }
 function nvError(e, what) {
+  if (e && e.mine) return e.mine;
   if (e && e.code === "invalid_credentials") return "Wrong email or password.";
   if (e && e.code === "email_not_confirmed") return "Your Nuvio email isn't confirmed yet. Confirm it from Nuvio's email first.";
   if (e && e.status === 429) return "Too many tries. Wait a minute and try again.";
   if (e && e.status === 401) return "Nuvio signed you out. Sign in again.";
   if (e && !e.status) return "Couldn't reach Nuvio. Check your connection and try again.";
-  return what + " Nuvio said: " + (e && e.message ? e.message : "unknown error") + ". You can use the steps below instead.";
+  return what + " Nuvio said: " + (e && e.message ? e.message : "unknown error") + ". You can use the copy and paste steps below instead.";
 }
 // Same JSON whatever the key order (Nuvio's database reorders keys).
 function canon(v) {
@@ -1402,111 +1439,163 @@ function canon(v) {
   return JSON.stringify(v);
 }
 function profileOf(i) { return nv.profiles.filter(function (p) { return p.profile_index === i; })[0]; }
+function pname(i) { var p = profileOf(i); return (p && p.name) || "Profile " + i; }
+function unlocked() { return nv.profiles.filter(function (p) { return !p.pin_enabled; }); }
 function addonProfile(i) { var p = profileOf(i); return p && p.uses_primary_addons ? 1 : i; } // such profiles use profile 1's addons
 function isTfiAddon(a) { return String(a && a.url).indexOf(BASE.replace("https://", "").replace("http://", "")) >= 0; }
-function checkAddons() {
-  var i = Number($("#nprofile").value);
-  nv.addons = null; $("#naddonrow").hidden = true;
-  return nvCall("/rest/v1/addons?select=url,name,enabled,sort_order&profile_id=eq." + addonProfile(i) + "&order=sort_order", null, "GET")
-    .then(function (list) { if (Number($("#nprofile").value) !== i) return; nv.addons = list || []; $("#naddonrow").hidden = nv.addons.some(isTfiAddon); },
-      function () { nv.addons = null; });
+function hasTfi(list) { return (list || []).some(function (c) { return c && tfiIds.indexOf(c.id) >= 0; }); }
+function mask(email) { var at = email.indexOf("@"); return at > 1 ? email.charAt(0) + "***" + email.slice(at) : email; }
+function names(list) { return list.length < 2 ? list.join("") : list.slice(0, -1).join(", ") + " and " + list[list.length - 1]; }
+function renderProfiles() {
+  var box = $("#nprofiles"); box.innerHTML = "";
+  nv.profiles.forEach(function (p) {
+    var i = p.profile_index, locked = !!p.pin_enabled, added = nv.has[i] === true;
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "prof" + (locked ? " locked" : "") + (nv.busy === i || nv.busy === "all" && !locked ? " busy" : "");
+    b.disabled = locked || nv.busy !== null;
+    b.setAttribute("aria-label", locked ? pname(i) + ", locked with a PIN" : (added ? "Update TFI Movies in " : "Add TFI Movies to ") + pname(i));
+    var av = document.createElement("span"); av.className = "av";
+    av.textContent = (pname(i).charAt(0) || "?").toUpperCase();
+    if (/^#[0-9a-fA-F]{3,8}$/.test(p.avatar_color_hex || "")) av.style.background = p.avatar_color_hex;
+    var n = document.createElement("span"); n.className = "pn"; n.textContent = pname(i);
+    b.appendChild(av); b.appendChild(n);
+    if (locked || added) { var t = document.createElement("span"); t.className = "badge" + (locked ? " lk" : ""); t.textContent = locked ? "🔒 Locked" : "Added ✓"; b.appendChild(t); }
+    if (!locked) b.addEventListener("click", function () { addOne(i); });
+    box.appendChild(b);
+  });
+  var open = unlocked();
+  $("#nallrow").hidden = open.length < 2; $("#nall").disabled = nv.busy !== null;
+  $("#nhint").textContent = open.length ? "Tap a profile to add it." : "All your profiles are locked.";
+  var locked = nv.profiles.filter(function (p) { return p.pin_enabled; }).map(function (p) { return pname(p.profile_index); });
+  $("#nlocknote").hidden = !locked.length;
+  $("#nlocknote").textContent = locked.length ? "🔒 " + names(locked) + (locked.length > 1 ? " are" : " is") + " locked with a PIN, and Nuvio doesn't let other sites unlock profiles. To add TFI Movies there, turn the PIN off in Nuvio for a moment and tap the profile here, then turn the PIN back on. Or open that profile in Nuvio and use the copy and paste steps below." : "";
 }
+// Read a profile's collections; null when Nuvio has nothing synced for it yet.
+function pull(i) { return nvCall("/rest/v1/rpc/sync_pull_collections", { p_profile_id: i }).then(function (rows) { return rows && rows[0] ? rows[0] : null; }); }
+// Make sure the TFI catalogs are installed where profile i takes its addons from. True when they were just installed.
+function ensureAddon(i) {
+  var ap = addonProfile(i), src = profileOf(ap);
+  if (nv.addonsOk[ap] || src && src.pin_enabled) return Promise.resolve(false); // never write to a locked profile
+  var fail = { mine: "TFI Movies was added, but the catalogs couldn't be installed. Use Install in Nuvio in the steps below." };
+  var list;
+  // A push replaces the whole addon list, so it's read right before: nothing added meanwhile is lost.
+  return nvCall("/rest/v1/addons?select=url,name,enabled,sort_order&profile_id=eq." + ap + "&order=sort_order", null, "GET")
+    .then(function (now) {
+      if (!Array.isArray(now)) throw fail;
+      if (now.some(isTfiAddon)) return null;
+      list = now.map(function (a, k) { var o = { url: a.url, enabled: a.enabled !== false, sort_order: k }; if (a.name) o.name = a.name; return o; });
+      list.push({ url: BASE + "/manifest.json", enabled: true, sort_order: list.length });
+      return nvCall("/rest/v1/rpc/sync_push_addons", { p_profile_id: ap, p_addons: list })
+        .then(function () { return nvCall("/rest/v1/addons?select=url&profile_id=eq." + ap, null, "GET"); })
+        .then(function (back) { if (!back || back.length !== list.length || !back.some(isTfiAddon)) throw fail; });
+    }, function () { throw fail; })
+    .then(function () { nv.addonsOk[ap] = true; return !!list; });
+}
+// Add or update TFI Movies on one profile. { skipped: true } when Nuvio has nothing synced and that wasn't confirmed.
+function addTo(i, emptyOk) {
+  var changed = false, had = false;
+  return pull(i).then(function (row) {
+    if (!row && !emptyOk) return { skipped: true };
+    var cur = row ? (row.collections_json || []) : [];
+    had = hasTfi(cur); // then it's only brought up to date (Nuvio's apps also rewrite some fields), not "added"
+    var r = addTfi(JSON.stringify(cur));
+    if (!r) throw { mine: pname(i) + "'s collections on Nuvio aren't in a form this page knows, so they were left alone. Use the copy and paste steps below." };
+    var next = JSON.parse(r.text);
+    changed = canon(next) !== canon(cur);
+    return (changed ? nvCall("/rest/v1/rpc/sync_push_collections", { p_profile_id: i, p_collections_json: next })
+      .then(function () { return pull(i); })
+      .then(function (back) { if (!back || canon(back.collections_json) !== canon(next)) throw { mine: "Nuvio saved something different from what was sent for " + pname(i) + ". Open Nuvio and check its collections." }; })
+      : Promise.resolve())
+      .then(function () { nv.has[i] = true; return ensureAddon(i); })
+      .then(function (installed) { return { added: !had, installed: installed }; });
+  });
+}
+function showDone(added, same, installed, note) {
+  var title = added.length ? "Added to " + names(added) : "TFI Movies is already in " + names(same);
+  if (added.length && same.length) title += " (" + names(same) + " already had it)";
+  $("#ndonetitle").textContent = title;
+  $("#ndonesteps").hidden = !added.length && !installed;
+  $("#ndonenote").textContent = (installed ? "The TFI Movies catalogs were installed too. " : "") + (note || "");
+  $("#ndone").hidden = false;
+}
+function failed(e) {
+  if (e && e.status === 401) { signedOut(); return smsg(nvError(e), "err"); } // the session ran out: back to the sign-in form, with why
+  amsg(nvError(e, "Couldn't finish."), "err");
+}
+function addOne(i) {
+  if (nv.busy !== null || !nv.token) return;
+  var emptyOk = nv.warned === i; nv.warned = null;
+  nv.busy = i; renderProfiles(); $("#ndone").hidden = true; amsg("Adding TFI Movies to " + pname(i) + "…");
+  addTo(i, emptyOk).then(function (r) {
+    if (r.skipped) {
+      nv.warned = i;
+      return amsg("Nuvio hasn't synced any collections for " + pname(i) + " yet. If it has collections in Nuvio, open Nuvio on that profile once first, or they could be replaced. If it has none, tap " + pname(i) + " again.", "err");
+    }
+    amsg("");
+    showDone(r.added ? [pname(i)] : [], r.added ? [] : [pname(i)], r.installed);
+  }).catch(failed).then(function () { nv.busy = null; renderProfiles(); });
+}
+$("#nall").addEventListener("click", function () {
+  if (nv.busy !== null || !nv.token) return;
+  nv.busy = "all"; nv.warned = null; renderProfiles(); $("#ndone").hidden = true; amsg("Adding TFI Movies to all profiles…");
+  var added = [], same = [], skipped = [], installed = false;
+  unlocked().reduce(function (chain, p) {
+    return chain.then(function () {
+      return addTo(p.profile_index, false).then(function (r) {
+        if (r.skipped) skipped.push(pname(p.profile_index));
+        else { (r.added ? added : same).push(pname(p.profile_index)); installed = installed || r.installed; }
+      });
+    });
+  }, Promise.resolve()).then(function () {
+    amsg("");
+    var note = skipped.length ? names(skipped) + (skipped.length > 1 ? " were" : " was") + " skipped: Nuvio hasn't synced any collections there yet. Tap " + (skipped.length > 1 ? "each one" : "it") + " to add it on its own." : "";
+    if (added.length || same.length) showDone(added, same, installed, note); else amsg(note, "err");
+  }).catch(failed).then(function () { nv.busy = null; renderProfiles(); });
+});
 function signedOut() {
-  nv.token = null; nv.profiles = []; nv.addons = null;
-  $("#acctready").hidden = true; $("#acctform").hidden = false; $("#npass").value = "";
+  nv.token = null; nv.profiles = []; nv.has = {}; nv.addonsOk = {}; nv.busy = null; nv.warned = null;
+  $("#acctready").hidden = true; $("#acctin").hidden = false; $("#npass").value = ""; $("#ndone").hidden = true; amsg("");
 }
+$("#neye").addEventListener("click", function () {
+  var show = $("#npass").type === "password";
+  $("#npass").type = show ? "text" : "password";
+  $("#neye").setAttribute("aria-pressed", show ? "true" : "false");
+  $("#neye").setAttribute("aria-label", show ? "Hide password" : "Show password");
+});
 $("#acctform").addEventListener("submit", function (ev) {
   ev.preventDefault();
   var email = $("#nemail").value.trim(), pass = $("#npass").value;
-  if (!email || !pass) return amsg("Type your Nuvio email and password.", "err");
-  $("#nsignin").disabled = true; amsg("Signing in to Nuvio…");
+  if (!email || !pass) return smsg("Type your Nuvio email and password.", "err");
+  $("#nsignin").disabled = true; smsg("Signing in…");
   nv.token = null;
   nvCall("/auth/v1/token?grant_type=password", { email: email, password: pass })
     .then(function (s) {
       if (!s || !s.access_token) throw new Error("no session");
       nv.token = s.access_token; $("#npass").value = "";
-      $("#nwho").textContent = (s.user && s.user.email) || email;
+      $("#nwho").textContent = mask((s.user && s.user.email) || email);
       return nvCall("/rest/v1/rpc/sync_pull_profiles", {});
     })
     .then(function (profiles) {
       nv.profiles = (profiles || []).slice().sort(function (a, b) { return a.profile_index - b.profile_index; });
       if (!nv.profiles.length) nv.profiles = [{ profile_index: 1, name: "Main profile" }];
-      var sel = $("#nprofile"); sel.innerHTML = "";
-      nv.profiles.forEach(function (p) {
-        var o = document.createElement("option");
-        o.value = String(p.profile_index);
-        o.textContent = (p.name || "Profile " + p.profile_index) + (p.pin_enabled ? " (locked)" : "");
-        o.disabled = !!p.pin_enabled; // a PIN-locked profile isn't changed from here
-        sel.appendChild(o);
-      });
-      var first = nv.profiles.filter(function (p) { return !p.pin_enabled; })[0];
-      if (!first) { amsg("All your profiles have a PIN lock, so they can't be changed from here. Use the steps below in Nuvio instead.", "err"); return; }
-      sel.value = String(first.profile_index);
-      $("#acctform").hidden = true; $("#acctready").hidden = false;
-      amsg("Signed in. Pick the profile and tap Add TFI Movies.", "ok");
-      return checkAddons();
-    })
-    .catch(function (e) { nv.token = null; amsg(nvError(e, "Couldn't sign in."), "err"); })
-    .then(function () { $("#nsignin").disabled = false; });
-});
-$("#nprofile").addEventListener("change", function () { amsg(""); checkAddons(); });
-$("#npush").addEventListener("click", function () {
-  var i = Number($("#nprofile").value), p = profileOf(i), name = (p && p.name) || "your profile";
-  if (!nv.token || !i) return;
-  $("#npush").disabled = true; amsg("Reading your collections…");
-  var wantAddon = !$("#naddonrow").hidden && $("#naddon").checked && nv.addons;
-  var next, changed;
-  nvCall("/rest/v1/rpc/sync_pull_collections", { p_profile_id: i })
-    .then(function (rows) {
-      var row = rows && rows[0];
-      if (!row && nv.emptyOk !== i) { // nothing synced yet: fine for a new account, but a phone may hold collections it hasn't synced
-        nv.emptyOk = i;
-        throw { mine: "Nuvio hasn't synced any collections for " + name + " yet. If you have collections in Nuvio, open Nuvio signed in on this profile once, then try again, or they could be replaced. If you have none yet, tap Add TFI Movies again." };
-      }
-      if (!row) row = { collections_json: [] };
-      var r = addTfi(JSON.stringify(row.collections_json || []));
-      if (!r) throw { mine: "Your collections on Nuvio aren't in a form this page knows, so they were left alone. Use the steps below instead." };
-      next = JSON.parse(r.text);
-      changed = canon(next) !== canon(row.collections_json || []);
-      if (!changed) return;
-      amsg("Adding TFI Movies…");
-      return nvCall("/rest/v1/rpc/sync_push_collections", { p_profile_id: i, p_collections_json: next })
-        .then(function () { return nvCall("/rest/v1/rpc/sync_pull_collections", { p_profile_id: i }); })
-        .then(function (back) {
-          if (!back || !back[0] || canon(back[0].collections_json) !== canon(next)) throw { mine: "Nuvio saved something different from what was sent. Open Nuvio and check your collections." };
-        });
+      // Which profiles already have TFI Movies (for the "Added" badges)
+      return Promise.all(unlocked().map(function (p) {
+        return pull(p.profile_index).then(function (row) { nv.has[p.profile_index] = !!row && hasTfi(row.collections_json); }, function () {});
+      }));
     })
     .then(function () {
-      if (!wantAddon) return false;
-      amsg("Installing the TFI Movies catalogs…");
-      var ap = addonProfile(i), list;
-      // A push replaces the whole addon list, so it's read again right before: an addon added meanwhile isn't lost.
-      return nvCall("/rest/v1/addons?select=url,name,enabled,sort_order&profile_id=eq." + ap + "&order=sort_order", null, "GET")
-        .then(function (now) {
-          if (!Array.isArray(now)) throw { mine: "The collection is in, but your addons couldn't be read, so the catalogs weren't installed. Use Install in Nuvio below." };
-          if (now.some(isTfiAddon)) return null;
-          list = now.map(function (a, k) { var o = { url: a.url, enabled: a.enabled !== false, sort_order: k }; if (a.name) o.name = a.name; return o; });
-          list.push({ url: BASE + "/manifest.json", enabled: true, sort_order: list.length });
-          return nvCall("/rest/v1/rpc/sync_push_addons", { p_profile_id: ap, p_addons: list });
-        })
-        .then(function () { return nvCall("/rest/v1/addons?select=url&profile_id=eq." + ap, null, "GET"); })
-        .then(function (back) {
-          if (!back || (list && back.length !== list.length) || !back.some(isTfiAddon)) throw { mine: "The collection is in, but the catalogs didn't install. Use Install in Nuvio below." };
-          $("#naddonrow").hidden = true; return true;
-        });
+      smsg(""); $("#acctin").hidden = true; $("#acctready").hidden = false; amsg("");
+      renderProfiles();
     })
-    .then(function (addonDone) {
-      amsg((changed ? "Done: TFI Movies is in " + name + "'s collections" : "TFI Movies was already up to date in " + name + "'s collections") +
-        (addonDone ? ", and the catalogs are installed" : "") + ". Close and reopen Nuvio to see it.", "ok");
-    })
-    .catch(function (e) { amsg(e && e.mine ? e.mine : nvError(e, "Couldn't finish."), "err"); if (e && e.status === 401) signedOut(); })
-    .then(function () { $("#npush").disabled = false; });
+    .catch(function (e) { nv.token = null; smsg(nvError(e, "Couldn't sign in."), "err"); })
+    .then(function () { $("#nsignin").disabled = false; });
 });
 function nvSignOut(keepalive) { // ends only this page's session, not the user's apps
   if (!nv.token) return;
   try { fetch(NV_API + "/auth/v1/logout?scope=local", { method: "POST", keepalive: !!keepalive, headers: { apikey: NV_KEY, Authorization: "Bearer " + nv.token } }).catch(function () {}); } catch (e) {}
 }
-$("#nsignout").addEventListener("click", function () { nvSignOut(false); signedOut(); amsg("Signed out.", "ok"); });
+$("#nsignout").addEventListener("click", function () { nvSignOut(false); signedOut(); smsg("Signed out.", "ok"); });
 window.addEventListener("pagehide", function () { nvSignOut(true); });
 render();
 })();
