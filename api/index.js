@@ -878,7 +878,8 @@ const NUVIO_API = "https://api.nuvio.tv";
 const NUVIO_KEY = "sb_publishable_1Clq8rlTVACkdcZuqr6_AD__xUUC_EN";
 
 // keys: the catalogs switched on, in the order Stremio shows them (a configured link's /configure page opens with its own choice)
-function landing(host, base, data, keys = ALL_KEYS) {
+// start: "cats" on a /configure page (Stremio's Configure button), so the wizard opens at the catalogs
+function landing(host, base, data, keys = ALL_KEYS, start = "app") {
   const cfg = configPath(keys);
   const manifestUrl = `${base}${cfg}/manifest.json`;
   const appInstall = `stremio://${host}${cfg}/manifest.json`;
@@ -899,16 +900,6 @@ function landing(host, base, data, keys = ALL_KEYS) {
   const sameSet = (a, b) => a.length === b.length && a.every((k) => b.includes(k));
   const names = Object.fromEntries(ALL_DEFS.map((d) => [d.key, [d.name, d.media === "tv" ? "Series" : "Movies"]]));
   const icon = (d) => `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
-  const card = (d) => {
-    const on = keys.includes(d.key);
-    const list = data.lists?.[d.id];
-    return `<label class="cat${on ? " on" : ""}">
-  <span class="cat-top"><span class="cat-name">${esc(d.name)}</span><span class="sw"><input type="checkbox" value="${esc(d.key)}"${on ? " checked" : ""} aria-label="${esc(d.name)}"><i></i></span></span>
-  <span class="cat-about">${esc(d.about)}</span>
-  <span class="cat-foot"><span class="tag${d.dubbed ? "" : " te"}">${d.dubbed ? "Telugu audio checked" : "Made in Telugu"}</span>${list ? `<a href="https://www.themoviedb.org/list/${list}" target="_blank" rel="noopener">TMDB list ↗</a>` : ""}</span>
-</label>`;
-  };
-  const group = (title, defs) => `<div class="group"><h3>${title}</h3><div class="cats">${Object.values(defs).map(card).join("")}</div></div>`;
   const ast = `<sup><a class="ast" href="#note" aria-label="About Telugu audio">*</a></sup>`;
   const desc = "Free Stremio addon: movies and web series that most probably have Telugu audio, new on Indian OTT. Telugu originals plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Refreshed every day.";
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -925,346 +916,317 @@ body{margin:0;color:var(--fg);font:16px/1.6 ui-sans-serif,system-ui,-apple-syste
 body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   background:radial-gradient(900px 520px at 12% -12%,rgba(139,92,246,.30),transparent 60%),radial-gradient(720px 440px at 96% 4%,rgba(217,70,239,.16),transparent 60%)}
 a{color:var(--acc2)}
-.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+[hidden]{display:none!important}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
 .top{position:sticky;top:0;z-index:20;background:rgba(10,7,18,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
-.top .wrap{display:flex;align-items:center;gap:24px;height:64px}
+.top .wrap{display:flex;align-items:center;gap:24px;height:60px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--fg);text-decoration:none;letter-spacing:-.01em}
 .brand img{width:30px;height:30px;border-radius:8px}
-nav{display:flex;align-items:center;gap:2px;margin-left:auto}
+nav{display:flex;align-items:center;gap:4px;margin-left:auto}
 nav a{color:var(--mut);text-decoration:none;font-size:14px;padding:6px 12px;border-radius:8px}
 nav a:hover{color:var(--fg);background:var(--card2)}
-nav a.gh{border:1px solid var(--line2);margin-left:8px}
+nav a.gh{border:1px solid var(--line2)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 18px;border-radius:10px;font-family:inherit;font-size:15px;font-weight:600;line-height:1.2;
   text-decoration:none;color:var(--fg);border:1px solid var(--line2);background:var(--card2);cursor:pointer;white-space:nowrap;transition:filter .15s,background .15s}
 .btn:hover{background:rgba(255,255,255,.11)}
+.btn:disabled{opacity:.45;cursor:default}
 .btn.primary{background:var(--grad);border-color:transparent;color:#fff;box-shadow:0 6px 24px rgba(168,85,247,.35)}
 .btn.primary:hover{filter:brightness(1.1)}
 .btn.lg{padding:14px 24px;font-size:16px;border-radius:12px}
+.btn.wide{width:100%}
 .btn svg{width:18px;height:18px}
-.hero{display:grid;grid-template-columns:1.3fr .7fr;gap:48px;align-items:center;padding:76px 0 60px}
-.badge{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#e9d5ff;background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.35);border-radius:999px;padding:5px 12px;margin-bottom:20px}
-.badge .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(74,222,128,.2)}
-h1{font-size:clamp(38px,6vw,66px);line-height:1.03;margin:0 0 18px;letter-spacing:-.035em;font-weight:800}
-h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-.lead{color:var(--mut);font-size:18px;margin:0 0 30px;max-width:580px}
-.ctas{display:flex;flex-wrap:wrap;gap:12px}
-.stats{display:flex;flex-wrap:wrap;gap:10px 28px;list-style:none;padding:0;margin:34px 0 0;color:var(--mut);font-size:14px}
-.stats b{color:var(--fg);font-size:15px}
-.art{position:relative;display:grid;place-items:center}
-.art::before{content:"";position:absolute;width:78%;aspect-ratio:1;border-radius:50%;background:var(--grad);filter:blur(72px);opacity:.35}
-.art img{position:relative;width:100%;max-width:290px;height:auto;aspect-ratio:1;border-radius:56px;border:1px solid var(--line2);display:block}
-section{padding:56px 0}
-.eyebrow{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--acc2);margin:0 0 8px}
-h2{font-size:clamp(26px,3.5vw,36px);line-height:1.15;margin:0 0 10px;letter-spacing:-.025em}
-.sub{color:var(--mut);margin:0 0 28px;max-width:660px}
-.presets{display:flex;flex-wrap:wrap;gap:4px;padding:5px;border:1px solid var(--line);background:var(--card);border-radius:12px;width:max-content;max-width:100%;margin:0 0 28px}
-.presets button{font:inherit;font-size:14px;font-weight:500;color:var(--mut);background:transparent;border:0;border-radius:8px;padding:7px 14px;cursor:pointer}
-.presets button:hover{color:var(--fg)}
-.presets button.on{background:var(--card2);color:var(--fg);box-shadow:inset 0 0 0 1px var(--line2)}
-.config{display:grid;grid-template-columns:1fr 340px;gap:28px;align-items:start}
-.group+.group{margin-top:28px}
-h3{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin:0 0 12px}
-.cats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-.cat{display:flex;flex-direction:column;gap:8px;padding:16px 18px;border:1px solid var(--line);background:var(--card);border-radius:14px;cursor:pointer;transition:border-color .15s,background .15s}
-.cat:hover{border-color:var(--line2)}
-.cat.on{border-color:rgba(168,85,247,.55);background:linear-gradient(180deg,rgba(168,85,247,.11),rgba(168,85,247,.03))}
-.cat-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.cat-name{font-weight:650;font-size:16px;line-height:1.3}
-.cat-about{color:var(--mut);font-size:14px;line-height:1.5;flex:1}
-.cat-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
-.cat-foot a{color:var(--mut);text-decoration:none}
-.cat-foot a:hover{color:var(--fg)}
-.tag{font-size:12px;color:#d8b4fe;background:rgba(168,85,247,.13);border-radius:6px;padding:2px 8px}
-.tag.te{color:#86efac;background:rgba(74,222,128,.1)}
-.sw{position:relative;width:42px;height:24px;flex:none}
-.sw input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;z-index:1}
-.sw i{position:absolute;inset:0;border-radius:999px;background:rgba(255,255,255,.15);transition:background .2s}
-.sw i::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4);transition:transform .2s}
-.sw input:checked+i{background:var(--grad)}
-.sw input:checked+i::after{transform:translateX(18px)}
-.sw input:focus-visible+i{outline:2px solid var(--acc2);outline-offset:2px}
-.panel{position:sticky;top:84px;border:1px solid var(--line);background:rgba(22,15,38,.8);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:16px;padding:20px}
-.panel .head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
-.panel h4{margin:0;font-size:17px}
-.mut{color:var(--mut);font-size:13px}
-.mut b{color:var(--fg)}
-.note{display:flex;justify-content:space-between;gap:8px;color:var(--dim);font-size:13px;margin:4px 0 14px}
 .link{font:inherit;font-size:13px;color:var(--mut);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .link:hover{color:var(--fg)}
 .link:disabled{visibility:hidden}
-#order{list-style:none;margin:0 0 18px;padding:0;display:grid;gap:6px}
-#order li{display:flex;align-items:center;gap:10px;padding:7px 7px 7px 10px;border:1px solid var(--line);background:var(--card);border-radius:10px;font-size:14px}
-#order .num{width:22px;height:22px;flex:none;display:grid;place-items:center;border-radius:6px;background:var(--card2);color:var(--mut);font-size:12px;font-weight:600}
-#order .oname{flex:1;min-width:0;line-height:1.3}
-#order small{display:block;color:var(--dim);font-size:12px}
-#order button{width:28px;height:28px;flex:none;display:grid;place-items:center;border:1px solid var(--line);background:transparent;color:var(--mut);border-radius:7px;cursor:pointer;padding:0}
-#order button:hover:not(:disabled){color:var(--fg);border-color:var(--line2);background:var(--card2)}
-#order button:disabled{opacity:.25;cursor:default}
-#order button svg{width:14px;height:14px}
-#order .empty{justify-content:center;color:var(--mut);border-style:dashed;padding:16px}
-.panel .btn{width:100%}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
-.row2 .btn{font-size:14px;padding:9px 12px}
-.copy{display:flex;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.35);margin-top:14px}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,440px);gap:48px;align-items:start;padding:56px 0 40px}
+.hero>*{min-width:0}
+.hero>div:first-child{padding-top:40px}
+.ctas{display:flex;flex-wrap:wrap;gap:10px;margin:26px 0 0}
+.qnote{color:var(--dim);font-size:13px;margin:10px 0 0;max-width:480px}
+.wtitle{margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--acc2)}
+h1{font-size:clamp(36px,5.4vw,60px);line-height:1.04;margin:0 0 16px;letter-spacing:-.035em;font-weight:800}
+h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{color:var(--mut);font-size:18px;margin:0;max-width:480px}
+sup{line-height:0}
+.ast{color:var(--acc2);text-decoration:none;font-weight:700;padding:0 2px}
+.wiz{border:1px solid var(--line2);border-radius:20px;background:rgba(22,15,38,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:20px 22px 22px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.steps{display:flex;gap:6px;list-style:none;margin:0 0 18px;padding:0;font-size:12px;font-weight:600;color:var(--dim)}
+.steps li{flex:1;padding-top:8px;border-top:3px solid var(--line2)}
+.steps li.on{color:var(--fg);border-color:var(--acc2)}
+.steps li.done{color:var(--mut);border-color:var(--acc)}
+.pane h2{font-size:21px;line-height:1.25;margin:0 0 6px;letter-spacing:-.015em}
+.pane .d{color:var(--mut);font-size:14px;margin:0 0 16px}
+.back{display:inline-block;margin:0 0 10px;font-size:13px;text-decoration:none}
+.apps{display:grid;gap:10px}
+.app{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:14px 16px;border:1px solid var(--line2);border-radius:14px;background:var(--card);color:var(--fg);font:inherit;cursor:pointer}
+.app:hover{background:var(--card2);border-color:rgba(232,121,249,.5)}
+.app b{display:block;font-size:17px}
+.app small{display:block;color:var(--mut);font-size:13px;line-height:1.4}
+.app .go{margin-left:auto;color:var(--acc2);font-size:20px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.chips button{font:inherit;font-size:13px;font-weight:500;color:var(--mut);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
+.chips button:hover{color:var(--fg)}
+.chips button.on{color:var(--fg);background:rgba(168,85,247,.18);border-color:rgba(168,85,247,.55)}
+.csum{font-size:14px;color:var(--mut);margin:0 0 12px}
+.csum b{color:var(--fg)}
+.wiz details{border:0;background:none;padding:0;margin:0 0 14px;border-radius:0}
+.wiz summary{display:inline-flex;font-weight:500;font-size:14px;color:var(--mut);padding:2px 0;gap:6px}
+.wiz summary::after{content:"▾";font-size:12px;transition:transform .2s}
+.wiz details[open]>summary::after{transform:rotate(180deg)}
+.wiz summary:hover{color:var(--fg)}
+#clist{list-style:none;margin:10px 0 6px;padding:0;display:grid;gap:4px;max-height:320px;overflow:auto}
+#clist li{display:flex;align-items:center;gap:10px;padding:6px 6px 6px 8px;border:1px solid var(--line);background:var(--card);border-radius:10px;font-size:14px}
+#clist li.off{opacity:.55}
+#clist .oname{flex:1;min-width:0;line-height:1.25}
+#clist small{display:block;color:var(--dim);font-size:11px}
+#clist button{width:26px;height:26px;flex:none;display:grid;place-items:center;border:1px solid var(--line);background:transparent;color:var(--mut);border-radius:7px;cursor:pointer;padding:0}
+#clist button:hover:not(:disabled){color:var(--fg);border-color:var(--line2);background:var(--card2)}
+#clist button:disabled{opacity:.25;cursor:default}
+#clist button svg{width:13px;height:13px}
+.sw{position:relative;width:38px;height:22px;flex:none}
+.sw input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;z-index:1}
+.sw i{position:absolute;inset:0;border-radius:999px;background:rgba(255,255,255,.15);transition:background .2s}
+.sw i::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4);transition:transform .2s}
+.sw input:checked+i{background:var(--grad)}
+.sw input:checked+i::after{transform:translateX(16px)}
+.sw input:focus-visible+i{outline:2px solid var(--acc2);outline-offset:2px}
+.none .js-install,.none .js-web,.none .js-copy{opacity:.4;pointer-events:none}
+.other{margin:14px 0 0!important}
+.other .in{padding:10px 0 0;color:var(--mut);font-size:14px}
+.other .in p{margin:0 0 12px}
+.other .in b{color:var(--fg)}
+.other code{word-break:break-all;overflow-wrap:anywhere;color:var(--mut);font-size:12px}
+.other h4{margin:14px 0 6px;font-size:14px;color:var(--fg)}
+.copy{display:flex;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.35);margin:8px 0}
 .copy input{flex:1;min-width:0;background:transparent;border:0;color:var(--mut);padding:9px 12px;font:12px ui-monospace,Consolas,monospace}
-.hint{color:var(--dim);font-size:12px;margin:8px 0 0}
-.copy .btn{width:auto;border:0;border-left:1px solid var(--line);border-radius:0 9px 9px 0;font-size:13px;padding:8px 12px}
-.paths{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 8px}
-.path{display:flex;flex-direction:column;gap:6px;padding:20px 22px;border-radius:16px;border:1px solid var(--line);background:var(--card);text-decoration:none;color:var(--mut);font-size:15px;transition:border-color .15s,background .15s}
-.path:hover{border-color:var(--line2);background:var(--card2)}
-.path b{color:var(--fg);font-size:18px}
-.path .go{margin-top:auto;padding-top:8px;color:var(--acc2);font-weight:600;font-size:14px}
-.kind{align-self:flex-start;font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;border-radius:999px;padding:3px 10px}
-.kind.cat{color:#e9d5ff;background:rgba(168,85,247,.16)}
-.kind.col{color:#fbcfe8;background:rgba(236,72,153,.16)}
-.path.col{border-color:rgba(236,72,153,.28)}
-.band{border:1px solid rgba(236,72,153,.28);border-radius:24px;padding:44px clamp(18px,4vw,44px);margin:28px 0;
-  background:radial-gradient(760px 320px at 88% -10%,rgba(236,72,153,.13),transparent 70%),radial-gradient(600px 300px at 0% 110%,rgba(139,92,246,.10),transparent 70%),rgba(255,255,255,.015)}
-.band .eyebrow{color:#f9a8d4}
-.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0 0 28px}
-.tiles img{display:block;width:100%;height:auto;aspect-ratio:16/9;border-radius:12px;border:1px solid var(--line);background:var(--card)}
-.flow{list-style:none;margin:0;padding:0;display:grid;gap:10px;counter-reset:f;max-width:860px}
-.flow>li{counter-increment:f;display:grid;grid-template-columns:34px 1fr auto;gap:14px;align-items:center;padding:14px 16px;border:1px solid var(--line);background:rgba(10,7,18,.55);border-radius:14px}
-.flow>li::before{content:counter(f);width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,#d946ef,#ec4899);color:#fff;font-weight:700}
-.flow b{display:block;color:var(--fg);font-size:15px}
-.flow .d{margin:2px 0 0;color:var(--mut);font-size:14px}
-.flow .act{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-.flow .act .btn{font-size:14px;padding:9px 14px}
+.copy .btn{border:0;border-left:1px solid var(--line);border-radius:0 9px 9px 0;font-size:13px;padding:8px 12px}
+.strip{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:0 0 14px}
+.strip img{display:block;width:100%;height:auto;aspect-ratio:16/9;border-radius:8px;border:1px solid var(--line);background:var(--card)}
+.flow{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:8px;counter-reset:f}
+.flow>li{counter-increment:f;display:grid;grid-template-columns:24px 1fr;gap:10px;align-items:start}
+.flow>li::before{content:counter(f);width:24px;height:24px;border-radius:7px;display:grid;place-items:center;background:var(--card2);color:var(--fg);font-size:12px;font-weight:700}
+.flow .act{grid-column:2;display:flex;gap:8px;flex-wrap:wrap}
+.flow .act .btn{font-size:13px;padding:7px 12px}
 .nmsg{font-size:14px;margin:6px 0 0;color:var(--mut)}
 .nmsg:empty{display:none}
 .nmsg.ok{color:var(--ok)}.nmsg.err{color:var(--no)}
-.more{max-width:860px;margin-top:16px;color:var(--mut);font-size:14px}
-.more p{margin:8px 0}
-.more code{word-break:break-all;color:var(--mut)}
-.more details{background:transparent;margin:10px 0 0}
-.more details summary{font-weight:500;font-size:14px;padding:12px 0}
-.combine textarea{display:block;width:100%;min-height:96px;resize:vertical;background:rgba(0,0,0,.35);border:1px solid var(--line2);border-radius:10px;color:var(--fg);padding:10px 12px;font:12px/1.5 ui-monospace,Consolas,monospace}
-.combine .btn{margin:10px 0 14px}
-.acct{max-width:860px;margin:0 0 22px;padding:20px;border:1px solid var(--line2);border-radius:16px;background:rgba(10,7,18,.55)}
-.acct h3{margin:0 0 4px;font-size:18px;color:var(--fg)}
-.acct .d{margin:0 0 14px;color:var(--mut);font-size:14px}
-.acct .stack{display:grid;gap:10px;max-width:420px}
+.combine textarea{display:block;width:100%;min-height:80px;resize:vertical;background:rgba(0,0,0,.35);border:1px solid var(--line2);border-radius:10px;color:var(--fg);padding:8px 10px;font:12px/1.5 ui-monospace,Consolas,monospace}
+.combine .btn{margin:8px 0 0}
+.acct .stack{display:grid;gap:10px}
 .acct input[type=email],.acct input[type=password],.acct input[type=text]{width:100%;min-width:0;background:rgba(0,0,0,.35);border:1px solid var(--line2);border-radius:10px;color:var(--fg);padding:11px 12px;font:inherit;font-size:16px}
-.acct .stack .btn{width:100%}
 .acct .pw{position:relative}
 .acct .pw input{padding-right:46px}
 .acct .eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:38px;height:38px;background:none;border:0;border-radius:8px;color:var(--dim);cursor:pointer}
 .acct .eye:hover,.acct .eye[aria-pressed=true]{color:var(--fg)}
 .acct .eye svg{width:18px;height:18px}
-.acct .how{max-width:420px;margin:12px 0 0;background:transparent;border:0;border-radius:0;padding:0}
-.acct .how summary{display:block;list-style:none;cursor:pointer;padding:0;font-weight:400;font-size:13px;color:var(--mut)}
+.acct .how{margin:10px 0 0}
+.acct .how summary{display:block;font-weight:400;font-size:13px;color:var(--mut)}
 .acct .how summary::after{content:none}
-.acct .how summary::-webkit-details-marker{display:none}
 .acct .how summary span{text-decoration:underline;text-underline-offset:3px}
 .acct .how p{margin:8px 0 0;color:var(--dim);font-size:13px}
 .acct .how a{color:var(--mut)}
-.profiles{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 6px}
-.prof{display:grid;justify-items:center;align-content:start;gap:6px;width:92px;padding:10px 4px;background:none;border:1px solid transparent;border-radius:14px;color:var(--fg);font:inherit;cursor:pointer}
+.profiles{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px}
+.prof{display:grid;justify-items:center;align-content:start;gap:5px;width:84px;padding:8px 2px;background:none;border:1px solid transparent;border-radius:14px;color:var(--fg);font:inherit;cursor:pointer}
 .prof:hover:not(:disabled){background:var(--card2);border-color:var(--line2)}
 .prof:disabled{cursor:default}
 .prof.locked{opacity:.45}
-.prof .av{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font-size:23px;font-weight:700;color:#fff;background:linear-gradient(135deg,#d946ef,#ec4899);text-shadow:0 1px 2px rgba(0,0,0,.35)}
-.prof .pn{font-size:14px;max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.prof .badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:rgba(52,211,153,.15);color:var(--ok)}
+.prof .av{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font-size:21px;font-weight:700;color:#fff;background:linear-gradient(135deg,#d946ef,#ec4899);text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.prof .pn{font-size:13px;max-width:78px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prof .badge{font-size:11px;font-weight:600;padding:1px 7px;border-radius:99px;background:rgba(52,211,153,.15);color:var(--ok)}
 .prof .badge.lk{background:var(--card2);color:var(--mut)}
 .prof.busy .av{animation:avpulse 1s ease-in-out infinite}
 @keyframes avpulse{50%{opacity:.45}}
-.acct .allrow{margin:6px 0 0}
-.acct .locknote{color:var(--mut);font-size:13px;margin:12px 0 0;max-width:620px}
-.acct .done{display:flex;gap:14px;align-items:flex-start;margin:16px 0 0;padding:14px 16px;border-radius:14px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);max-width:620px}
-.acct .done .tick{flex:none;width:36px;height:36px;border-radius:50%;background:var(--ok);color:#0a0712;display:grid;place-items:center;font-size:18px;font-weight:800}
-.acct .done b{display:block;font-size:16px;color:var(--fg)}
-.acct .done ol{margin:6px 0 0;padding-left:20px;color:var(--fg);font-size:14px}
+.acct .locknote{color:var(--mut);font-size:13px;margin:10px 0 0}
+.acct .done{display:flex;gap:12px;align-items:flex-start;margin:14px 0 0;padding:12px 14px;border-radius:14px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3)}
+.acct .done .tick{flex:none;width:32px;height:32px;border-radius:50%;background:var(--ok);color:#0a0712;display:grid;place-items:center;font-size:17px;font-weight:800}
+.acct .done b{display:block;font-size:15px;color:var(--fg)}
+.acct .done ol{margin:4px 0 0;padding-left:18px;color:var(--fg);font-size:14px}
 .acct .done .d{margin:6px 0 0}
-.acct .who{color:var(--dim);font-size:13px;margin:16px 0 0}
-.or{max-width:860px;color:var(--mut);font-size:14px;margin:0 0 10px}
-[hidden]{display:none!important}
-sup{line-height:0}
-.ast{color:var(--acc2);text-decoration:none;font-weight:700;padding:0 2px}
-.ast:hover{color:var(--fg)}
-.fine{color:var(--dim);font-size:13px;margin:18px 0 0;max-width:580px}
-.callout{display:flex;gap:14px;align-items:flex-start;border:1px solid rgba(251,191,36,.28);background:rgba(251,191,36,.05);border-radius:14px;padding:16px 18px;margin-top:14px;color:var(--mut);font-size:14px;scroll-margin-top:90px}
-.callout p{margin:0}
-.callout b{color:var(--fg)}
-.callout .ic{margin:0;flex:none}
-.ai{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px 16px;margin:0 0 16px;color:var(--mut)}
-.ai b{color:var(--fg)}
-.none .js-install,.none .js-nuvio,.none .js-web,.none .js-copy{opacity:.4;pointer-events:none}
-.checks{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.check{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:20px}
-.ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;margin-bottom:12px}
-.ic svg{width:18px;height:18px}
-.ic.ok{background:rgba(74,222,128,.12);color:var(--ok)}
-.ic.no{background:rgba(248,113,113,.12);color:var(--no)}
-.ic.maybe{background:rgba(251,191,36,.12);color:var(--maybe)}
-.check h4{margin:0 0 6px;font-size:16px}
-.check p{margin:0;color:var(--mut);font-size:14px}
-.faq{max-width:800px}
-details{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:0 18px;margin-bottom:10px}
-summary{cursor:pointer;font-weight:600;padding:15px 0;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.acct .who{color:var(--dim);font-size:13px;margin:12px 0 0}
+section{padding:40px 0}
+.faq{max-width:760px}
+.faq h2{font-size:26px;margin:0 0 14px;letter-spacing:-.02em}
+.faq details{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:0 18px;margin-bottom:8px}
+.faq summary{cursor:pointer;font-weight:600;padding:13px 0;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px}
 summary::-webkit-details-marker{display:none}
-summary::after{content:"+";color:var(--mut);font-size:22px;font-weight:400;line-height:1;transition:transform .2s}
-details[open] summary::after{transform:rotate(45deg)}
-details p{color:var(--mut);margin:0 0 16px}
-footer{border-top:1px solid var(--line);margin-top:24px;padding:28px 0 48px;color:var(--dim);font-size:13px}
+summary{list-style:none;cursor:pointer}
+.faq summary::after{content:"+";color:var(--mut);font-size:22px;font-weight:400;line-height:1;transition:transform .2s}
+.faq details[open] summary::after{transform:rotate(45deg)}
+.faq details p,.faq details ul{color:var(--mut);margin:0 0 14px}
+.faq details ul{padding-left:20px}
+.faq details li{margin:4px 0}
+.faq b{color:var(--fg)}
+footer{border-top:1px solid var(--line);margin-top:16px;padding:22px 0 40px;color:var(--dim);font-size:13px}
 footer p{margin:4px 0}
 footer a{color:var(--mut)}
-.mbar{display:none}
 @media (max-width:900px){
-  .hero{grid-template-columns:1fr;text-align:center;padding:40px 0 36px;gap:28px}
-  .art{order:-1}.art img{max-width:150px;border-radius:34px}
-  .lead{margin-left:auto;margin-right:auto}.ctas,.stats{justify-content:center}
-  .config{grid-template-columns:1fr}.panel{position:static}
-  .checks,.paths{grid-template-columns:1fr}
-  .tiles{grid-template-columns:repeat(2,1fr)}
-  .flow>li{grid-template-columns:32px 1fr;align-items:start}
-  .flow .act{grid-column:2;justify-content:flex-start}
-  nav a:not(.gh){display:none}
-  body{padding-bottom:84px}
-  .mbar{display:flex;position:fixed;left:12px;right:12px;bottom:12px;z-index:30;align-items:center;justify-content:space-between;gap:12px;padding:10px 10px 10px 16px;
-    border:1px solid var(--line2);border-radius:14px;background:rgba(22,15,38,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  .hero{grid-template-columns:minmax(0,1fr);gap:24px;padding:28px 0 24px}
+  .hero>div:first-child{padding-top:0}
+  .lead{font-size:16px}
 }
-@media (max-width:560px){.wrap{padding:0 16px}.cats{grid-template-columns:1fr}.presets{width:auto}}
+@media (max-width:560px){.ctas .btn{flex:1 1 100%}.wrap{padding:0 16px}.wiz{padding:16px}.strip{gap:4px}.strip img{border-radius:6px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}html{scroll-behavior:auto}}
 </style></head><body>
 <header class="top"><div class="wrap">
   <a class="brand" href="/"><img src="/tfi-logo.png" alt="">TFI Movies</a>
-  <nav><a href="#customize">Catalogs</a><a href="#nuvio">Nuvio collection</a><a href="#check">Telugu check</a><a href="#faq">FAQ</a><a class="gh" href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a></nav>
+  <nav><a href="#faq">FAQ</a><a class="gh" href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a></nav>
 </div></header>
 
 <main class="wrap">
 <section class="hero">
   <div>
-    <span class="badge"><span class="dot"></span><span>Telugu audio only${ast} · refreshed daily</span></span>
     <h1>New on OTT,<br><em>all in Telugu.</em>${ast}</h1>
-    <p class="lead">Free catalogs for Stremio and Nuvio with the latest Telugu movies and web series, plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Every title most probably has a Telugu audio track.${ast}</p>
+    <p class="lead">Free catalogs of the newest Telugu movies and series, plus titles dubbed in Telugu. Updated every morning.</p>
     <div class="ctas">
-      <a class="btn primary lg js-install" href="${esc(appInstall)}">${icon("M8 3v10M3 8h10")}Install in Stremio</a>
-      <a class="btn lg js-nuvio" href="${esc(nuvioInstall)}">${icon("M8 3v10M3 8h10")}Install in Nuvio</a>
+      <a class="btn primary lg" href="${esc(appInstall)}">${icon("M8 3v10M3 8h10")}Install in Stremio</a>
+      <a class="btn lg" href="${esc(nuvioInstall)}">${icon("M8 3v10M3 8h10")}Install in Nuvio</a>
     </div>
-    <ul class="stats"><li><b>${ALL_DEFS.length}</b> catalogs</li><li><b>${PLATFORM_NAMES.length}</b> OTT platforms</li><li><b>Daily</b> refresh</li><li><b>Free</b>, no account</li></ul>
-    <p class="fine">* Most probably, not guaranteed. Whether you actually get Telugu audio depends on your stream addons and how they're configured. <a href="#note">More</a></p>
+    <p class="qnote">${keys.length === ALL_KEYS.length ? `All ${ALL_KEYS.length} catalogs` : `Your ${keys.length} catalogs`}, one tap. To pick catalogs or add Nuvio's tiles, use the guided setup.</p>
   </div>
-  <div class="art"><img src="/tfi-logo.gif" onerror="this.onerror=null;this.src='/tfi-logo.png'" width="290" height="290" alt="TFI Movies logo"></div>
-</section>
 
-<div class="paths">
-  <a class="path" href="#customize"><span class="kind cat">Catalogs</span><b>The lists of titles</b>${ALL_DEFS.length} catalogs of new Telugu and Telugu-dubbed movies and series. Install them in Stremio or Nuvio, and pick which ones you want.<span class="go">Choose catalogs →</span></a>
-  <a class="path col" href="#nuvio"><span class="kind col">Nuvio collection</span><b>Tiles on Nuvio's Home</b>An extra for Nuvio: shows the catalogs as a row of tiles, with covers made from the newest titles in each list. Needs the catalogs installed.<span class="go">Add to Nuvio →</span></a>
-</div>
+  <div class="wiz" id="wiz">
+    <p class="wtitle">Guided setup</p>
+    <ol class="steps" id="steps" aria-label="Steps"></ol>
 
-<section id="customize">
-  <p class="eyebrow">Catalogs · Stremio and Nuvio</p>
-  <h2>Choose your catalogs</h2>
-  <p class="sub">The catalogs are the lists themselves. Switch them on or off and set the order your app shows them in. Your choice is saved in the addon link, so there's no account to make.</p>
-  <div class="presets" id="presets" role="group" aria-label="Presets">${Object.entries(presets).map(([p, [label, list]]) => `<button type="button" data-p="${p}" aria-pressed="${sameSet(list, keys)}"${sameSet(list, keys) ? ' class="on"' : ""}>${label}</button>`).join("")}</div>
-  <div class="config">
-    <div id="cats">${group("Movies", CATALOGS)}${group("Series", SERIES)}</div>
-    <aside class="panel">
-      <div class="head"><h4>Your addon</h4><span class="mut"><b class="js-count">${keys.length}</b> of ${ALL_KEYS.length} catalogs</span></div>
-      <div class="note"><span>Your app shows them in this order.</span><button type="button" class="link" id="resetorder">Reset order</button></div>
-      <ol id="order">${keys.map((k, i) => `<li><span class="num">${i + 1}</span><span class="oname">${esc(names[k][0])}<small>${names[k][1]}</small></span></li>`).join("")}</ol>
-      <a class="btn primary js-install" href="${esc(appInstall)}">Install in Stremio</a>
-      <div class="row2"><a class="btn js-nuvio" href="${esc(nuvioInstall)}">Install in Nuvio</a><a class="btn js-web" href="${esc(webInstall)}" target="_blank" rel="noopener">Stremio Web</a></div>
-      <div class="copy"><input id="murl" value="${esc(manifestUrl)}" readonly aria-label="Addon link"><button type="button" class="btn js-copy" data-label="Copy">Copy</button></div>
-      <p class="hint">A button doesn't open your app (for example Nuvio on Windows)? Copy the link and add it on the app's Addons page.</p>
-    </aside>
-  </div>
-</section>
-
-<section id="nuvio" class="band">
-  <p class="eyebrow">Nuvio collection · Nuvio only</p>
-  <h2>Show the catalogs as tiles on Nuvio's Home</h2>
-  <p class="sub">A collection doesn't add any titles: it's how Nuvio shows the catalogs above, as a “TFI Movies” row with a tile for each. Every cover is made from the newest titles in its list, changes when the list does, and comes alive when you select it.</p>
-  <div class="tiles">${ALL_DEFS.map((d) => `<img src="/art/${esc(d.key)}/cover.webp" data-focus="/art/${esc(d.key)}/focus.gif" width="320" height="180" loading="lazy" alt="Cover of ${esc(d.name)}">`).join("")}</div>
-  <div class="acct" id="acct">
-    <h3>Add TFI Movies to your Nuvio</h3>
-    <div id="acctin">
-      <p class="d">Sign in and it's on all your devices. Your own collections stay as they are.</p>
-      <form id="acctform" class="stack">
-        <input type="email" id="nemail" autocomplete="username" placeholder="Nuvio email" aria-label="Nuvio email" required>
-        <div class="pw"><input type="password" id="npass" autocomplete="current-password" placeholder="Password" aria-label="Nuvio password" required><button type="button" class="eye" id="neye" aria-label="Show password" aria-pressed="false">${icon("M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8s-2.4 4.5-6.5 4.5S1.5 8 1.5 8zM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z")}</button></div>
-        <button type="submit" class="btn primary" id="nsignin">Sign in to Nuvio</button>
-      </form>
-      <p class="nmsg" id="smsg" role="status"></p>
-      <details class="how"><summary>🔒 Sent only to Nuvio (api.nuvio.tv). Never stored. <span>How?</span></summary>
-        <p>This box talks to Nuvio straight from your browser, through <a href="https://nuvio.tv/docs/server-api" target="_blank" rel="noopener">Nuvio's public API</a>. Your password goes to Nuvio's server only, never to TFI Movies, and nothing is saved in this browser. Closing the page signs you out. <a href="${REPO_URL}/blob/main/api/index.js" target="_blank" rel="noopener">The code for this box is public</a>.</p></details>
+    <div class="pane" data-step="app">
+      <h2>Which app do you use?</h2>
+      <p class="d">Free, no account needed for the catalogs.</p>
+      <div class="apps">
+        <button type="button" class="app" data-app="stremio"><span><b>Stremio</b><small>The catalogs show up on Board and Discover.</small></span><span class="go">→</span></button>
+        <button type="button" class="app" data-app="nuvio"><span><b>Nuvio</b><small>The catalogs, plus a row of tiles on Home.</small></span><span class="go">→</span></button>
+      </div>
     </div>
-    <div id="acctready" hidden>
-      <p class="d" id="nhint">Tap a profile to add it.</p>
-      <div class="profiles" id="nprofiles"></div>
-      <div class="allrow" id="nallrow"><button type="button" class="btn" id="nall">Add to all profiles</button></div>
-      <p class="locknote" id="nlocknote" hidden></p>
-      <div class="done" id="ndone" hidden><div class="tick" aria-hidden="true">✓</div><div><b id="ndonetitle"></b><ol id="ndonesteps"><li>Close Nuvio fully.</li><li>Open it again: TFI Movies is on Home.</li></ol><p class="d" id="ndonenote"></p></div></div>
-      <p class="nmsg" id="amsg" role="status"></p>
-      <p class="who">Signed in as <span id="nwho"></span> · <button type="button" class="link" id="nsignout">Sign out</button></p>
+
+    <div class="pane" data-step="cats" hidden>
+      <button type="button" class="link back" data-go="app">← Back</button>
+      <h2>Which catalogs?</h2>
+      <p class="csum"><b class="js-sum">All ${ALL_KEYS.length} catalogs</b></p>
+      <div class="chips" id="presets" role="group" aria-label="Presets">${Object.entries(presets).map(([p, [label, list]]) => `<button type="button" data-p="${p}" aria-pressed="${sameSet(list, keys)}"${sameSet(list, keys) ? ' class="on"' : ""}>${label}</button>`).join("")}</div>
+      <details id="custom"><summary>Customize: pick and order</summary>
+        <ul id="clist"></ul>
+        <button type="button" class="link" id="resetorder">Reset order</button>
+      </details>
+      <button type="button" class="btn primary wide" id="catnext" data-go="install">Next</button>
+    </div>
+
+    <div class="pane" data-step="install" hidden>
+      <button type="button" class="link back" data-go="cats">← Back</button>
+      <h2>Install in Stremio</h2>
+      <p class="d"><b class="js-sum">All ${ALL_KEYS.length} catalogs</b>. To change them later, press <b>Configure</b> on TFI Movies in Stremio.</p>
+      <a class="btn primary lg wide js-install" href="${esc(appInstall)}">${icon("M8 3v10M3 8h10")}Install in Stremio</a>
+      <details class="other"><summary>Other ways to install</summary><div class="in">
+        <p><a class="js-web" href="${esc(webInstall)}" target="_blank" rel="noopener">Install on Stremio Web</a></p>
+        <p>The button doesn't open your app? Copy the addon link and paste it on Stremio's Addons page.</p>
+        <div class="copy"><input id="murl" value="${esc(manifestUrl)}" readonly aria-label="Addon link"><button type="button" class="btn js-copy" data-label="Copy">Copy</button></div>
+      </div></details>
+    </div>
+
+    <div class="pane" data-step="nuvio" hidden>
+      <button type="button" class="link back" data-go="app">← Back</button>
+      <h2>Add TFI Movies to Nuvio</h2>
+      <p class="d">Sign in once: the catalogs and a row of tiles go on all your devices. Your own collections stay as they are.</p>
+      <div class="strip">${ALL_DEFS.slice(0, 4).map((d) => `<img src="/art/${esc(d.key)}/cover.webp" data-focus="/art/${esc(d.key)}/focus.gif" width="320" height="180" loading="lazy" alt="Cover of ${esc(d.name)}">`).join("")}</div>
+      <div class="acct" id="acct">
+        <div id="acctin">
+          <form id="acctform" class="stack">
+            <input type="email" id="nemail" autocomplete="username" placeholder="Nuvio email" aria-label="Nuvio email" required>
+            <div class="pw"><input type="password" id="npass" autocomplete="current-password" placeholder="Password" aria-label="Nuvio password" required><button type="button" class="eye" id="neye" aria-label="Show password" aria-pressed="false">${icon("M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8s-2.4 4.5-6.5 4.5S1.5 8 1.5 8zM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z")}</button></div>
+            <button type="submit" class="btn primary" id="nsignin">Sign in to Nuvio</button>
+          </form>
+          <p class="nmsg" id="smsg" role="status"></p>
+          <details class="how"><summary>🔒 Sent only to Nuvio (api.nuvio.tv). Never stored. <span>How?</span></summary>
+            <p>This box talks to Nuvio straight from your browser, through <a href="https://nuvio.tv/docs/server-api" target="_blank" rel="noopener">Nuvio's public API</a>. Your password goes to Nuvio's server only, never to TFI Movies, and nothing is saved in this browser. Closing the page signs you out. <a href="${REPO_URL}/blob/main/api/index.js" target="_blank" rel="noopener">The code for this box is public</a>.</p></details>
+        </div>
+        <div id="acctready" hidden>
+          <p class="d" id="nhint">Tap a profile to add it.</p>
+          <div class="profiles" id="nprofiles"></div>
+          <div id="nallrow"><button type="button" class="btn" id="nall">Add to all profiles</button></div>
+          <p class="locknote" id="nlocknote" hidden></p>
+          <div class="done" id="ndone" hidden><div class="tick" aria-hidden="true">✓</div><div><b id="ndonetitle"></b><ol id="ndonesteps"><li>Close Nuvio fully.</li><li>Open it again: TFI Movies is on Home.</li></ol><p class="d" id="ndonenote"></p></div></div>
+          <p class="nmsg" id="amsg" role="status"></p>
+          <p class="who">Signed in as <span id="nwho"></span> · <button type="button" class="link" id="nsignout">Sign out</button></p>
+        </div>
+      </div>
+      <details class="other"><summary>Other ways to install</summary><div class="in">
+        <h4>Just the catalogs</h4>
+        <p><a href="${esc(nuvioInstallAll)}">Install in Nuvio</a> · <button type="button" class="link js-copy-all" data-label="Copy addon link">Copy addon link</button> (paste it on Nuvio's Addons page)</p>
+        <h4>Tiles on a Nuvio TV</h4>
+        <p><b>Addons → Collections → Import → From URL</b>: <code>${esc(base)}/nuvio-collections.json</code></p>
+        <h4>Tiles on a phone, without signing in</h4>
+        <ol class="flow">
+          <li><span>In Nuvio, <b>Settings → Layout → Collections</b>, tap the <b>Copy</b> icon.</span></li>
+          <li><span>Tap Add TFI Movies: it adds TFI to what you copied and copies it back.</span>
+            <div class="act"><button type="button" class="btn primary" id="addtfi">Add TFI Movies</button><button type="button" class="btn primary" id="copyresult" hidden>Copy result</button></div>
+            <p class="nmsg" id="nmsg" role="status" style="grid-column:2"></p></li>
+          <li><span>In Nuvio tap the <b>Paste</b> icon, paste and tap <b>Import</b>.</span></li>
+        </ol>
+        <p style="margin-top:12px">No collections in Nuvio yet? <button type="button" class="link" id="copytfi">Copy the TFI collection</button> and paste it in step 3.</p>
+        <details id="manual"><summary>Step 2 can't read what you copied?</summary>
+          <div class="combine"><textarea id="mine" rows="3" spellcheck="false" placeholder="Paste what Nuvio's Copy icon copied" aria-label="Your Nuvio collections"></textarea>
+          <button type="button" class="btn" id="combine">Add TFI Movies and copy</button></div></details>
+      </div></details>
     </div>
   </div>
-  <p class="or">Or by copy and paste, without signing in:</p>
-  <ol class="flow">
-    <li><div><b>Install the catalogs in Nuvio</b><p class="d">All ${ALL_DEFS.length} of them, so every tile has something to show. Already done? Skip this.</p></div>
-      <div class="act"><a class="btn" href="${esc(nuvioInstallAll)}">Install in Nuvio</a><button type="button" class="btn js-copy-all" data-label="Copy link">Copy link</button></div></li>
-    <li><div><b>In Nuvio, copy your collections</b><p class="d">Open <strong>Settings → Layout → Collections</strong> and tap the <strong>Copy</strong> icon at the top right.</p></div></li>
-    <li><div><b>Add TFI Movies to them</b><p class="d">Takes what you just copied, adds the TFI Movies collection and copies it back. Your own collections stay as they are.</p>
-      <p class="nmsg" id="nmsg" role="status"></p></div>
-      <div class="act"><button type="button" class="btn primary" id="addtfi">Add TFI Movies</button><button type="button" class="btn primary" id="copyresult" hidden>Copy result</button></div></li>
-    <li><div><b>In Nuvio, paste and import</b><p class="d">On the same screen tap the <strong>Paste</strong> icon at the top right, paste, and tap <strong>Import</strong>.</p></div></li>
-  </ol>
-  <div class="more">
-    <p><b>No collections in Nuvio yet?</b> Skip steps 2 and 3: <button type="button" class="link" id="copytfi">copy the TFI collection</button> and paste it in step 4. Pasting in Nuvio replaces all your collections, which is why step 3 brings yours along.</p>
-    <p><b>Nuvio on a TV?</b> Simpler: <b>Addons → Collections → Import → From URL</b> with <code>${esc(base)}/nuvio-collections.json</code>. The TV app adds it next to your own collections.</p>
-    <details id="manual"><summary>Step 3 can't read what you copied? Paste it here instead</summary>
-      <div class="combine"><textarea id="mine" rows="4" spellcheck="false" placeholder="Paste what Nuvio's Copy icon copied" aria-label="Your Nuvio collections"></textarea>
-      <button type="button" class="btn" id="combine">Add TFI Movies and copy</button></div></details>
-  </div>
-</section>
-
-<section id="check">
-  <p class="eyebrow">Telugu audio only</p>
-  <h2>Every title most probably has a Telugu track${ast}</h2>
-  <p class="sub">Telugu films and series are in automatically. Every dubbed title is checked each day against the audio languages JustWatch and Netflix list, and against OTT release news.</p>
-  <div class="checks">
-    <div class="check"><div class="ic ok">${icon("M3 8.5l3.2 3.2L13 5")}</div><h4>Confirmed</h4><p>JustWatch or Netflix lists Telugu audio, it's on ETV Win, or OTT release news (Sacnilk, 123telugu) says so.</p></div>
-    <div class="check"><div class="ic no">${icon("M4 4l8 8M12 4l-8 8")}</div><h4>Left out</h4><p>The services list the audio languages and Telugu isn't one of them, or JustWatch doesn't know the title and no news confirms Telugu.</p></div>
-    <div class="check"><div class="ic maybe">${icon("M6 6a2 2 0 1 1 2.8 1.8c-.5.3-.8.7-.8 1.2v.5M8 12h.01")}</div><h4>Kept, unconfirmed</h4><p>JustWatch knows the title but no service lists its audio languages yet (mostly Sun NXT), so it gets the benefit of the doubt.</p></div>
-  </div>
-  <div class="callout" id="note"><div class="ic maybe">${icon("M8 4.5v4.5M8 11.5h.01")}</div><p><b>* Most probably, not guaranteed.</b> The check above can be wrong, and a dub isn't always on every service. TFI Movies only lists titles and doesn't provide any streams, so whether you actually get Telugu audio when you play a title depends on your stream addons and how they're configured (for example their language settings and which version of the title they find).</p></div>
 </section>
 
 <section id="faq" class="faq">
-  <p class="eyebrow">FAQ</p>
   <h2>Questions</h2>
-  <details><summary>Does TFI Movies play videos?</summary><p>No. It adds catalogs: posters, details, ratings and trailers for what's new on Indian OTT. It doesn't host or link to any video. Watch on the streaming service that has the title.</p></details>
-  <details><summary>How fresh are the catalogs?</summary><p>They update every morning (India time) from TMDB's streaming data, plus OTT release news from Sacnilk, 123telugu and 91mobiles, so new arrivals show up even before TMDB catches up.</p></details>
-  <details><summary>Does every title have Telugu audio?</summary><p>Most probably, but it isn't guaranteed. See <a href="#check">how the Telugu check works</a>: a title goes in when Telugu is listed, or when JustWatch knows it but no service lists its audio languages yet. Whether you get the Telugu track when you play a title depends on your stream addons and their settings, not on TFI Movies. Found one without Telugu? <a href="${REPO_URL}/issues" target="_blank" rel="noopener">Tell us on GitHub</a>.</p></details>
-  <details><summary>Can I hide catalogs or change their order?</summary><p>Yes. Under <a href="#customize">Catalogs</a>, switch off the ones you don't want and use the arrows to set their order, then install. Already installed? Open TFI Movies on Stremio's Addons page, press <b>Configure</b>, change your choice and install again.</p></details>
-  <details><summary>Does it work in Nuvio?</summary><p>Yes. Nuvio installs the same catalogs (use <b>Install in Nuvio</b>, or paste the addon link on Nuvio's Addons page). There's also a <a href="#nuvio">Nuvio collection</a> that shows them as tiles on Nuvio's Home, with covers made from the newest titles in each list.</p></details>
-  <details><summary>What's the difference between catalogs and the collection?</summary><p>The catalogs are the lists of titles: Stremio and Nuvio both show them. The collection is a Nuvio-only extra that arranges those catalogs as a row of tiles with live covers. It needs the catalogs installed, and doesn't add any titles of its own.</p></details>
-  <details><summary>Was this made with AI?</summary><p>Yes, partly. The code, this page and the rules for the catalogs were written with the help of AI. The catalogs are put together automatically every day, with no person checking each title, so a title, date or audio language can be wrong. Spot a mistake? <a href="${REPO_URL}/issues" target="_blank" rel="noopener">Tell us on GitHub</a>.</p></details>
-  <details><summary>Is it free? Can I see how it works?</summary><p>Yes, it's free and needs no account. The code is open source on <a href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a>.</p></details>
+  <details id="note"><summary>Does every title have Telugu audio?</summary>
+    <p>Most probably, but it isn't guaranteed. Telugu films and series are in automatically. Each dubbed title is checked every day:</p>
+    <ul><li><b>In:</b> JustWatch or Netflix lists Telugu audio, it's on ETV Win, or OTT release news (Sacnilk, 123telugu) says so.</li>
+      <li><b>Kept, unconfirmed:</b> JustWatch knows the title but no service lists its audio languages yet (mostly Sun NXT).</li>
+      <li><b>Left out:</b> the audio languages are listed and Telugu isn't one, or nothing confirms it.</li></ul>
+    <p>TFI Movies only lists titles and has no streams, so whether you get the Telugu track depends on your stream addons and their settings. Found one without Telugu? <a href="${REPO_URL}/issues" target="_blank" rel="noopener">Tell us on GitHub</a>.</p></details>
+  <details><summary>Does TFI Movies play videos?</summary><p>No. It adds catalogs: posters, details, ratings and trailers for what's new on Indian OTT. It doesn't host or link to any video.</p></details>
+  <details><summary>How fresh are the catalogs?</summary><p>They update every morning (India time) from TMDB's streaming data, plus OTT release news from Sacnilk, 123telugu and 91mobiles.</p></details>
+  <details><summary>What are the tiles in Nuvio?</summary><p>A Nuvio collection: a "TFI Movies" row on Home with a tile for each catalog. Each cover is made from the newest titles in its list and changes when the list does. It needs the catalogs installed and adds no titles of its own.</p></details>
+  <details><summary>Can I change my catalogs later?</summary><p>Yes. In Stremio, press <b>Configure</b> on TFI Movies, change your choice and install again.</p></details>
+  <details><summary>Is it free? Was it made with AI?</summary><p>It's free, needs no account and is <a href="${REPO_URL}" target="_blank" rel="noopener">open source</a>. It was built with the help of AI, and the catalogs are made automatically every day with no person checking each title, so details, including Telugu audio, can be wrong.</p></details>
 </section>
 </main>
 
 <footer><div class="wrap">
-  <p class="ai"><b>AI disclaimer:</b> TFI Movies was built with the help of AI, and its catalogs are made automatically without a person checking each title. Details, including Telugu audio, can be wrong.</p>
-  <p>TFI Movies v${esc(manifest(base).version)} · <a href="${REPO_URL}" target="_blank" rel="noopener">Source on GitHub</a></p>
-  <p>Data from <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a>. This product uses the TMDB API but is not endorsed or certified by TMDB. Not affiliated with Stremio or any streaming service.</p>
+  <p>TFI Movies v${esc(manifest(base).version)} · <a href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a> · Built with AI help; details can be wrong.</p>
+  <p>Data from <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a>. This product uses the TMDB API but is not endorsed or certified by TMDB. Not affiliated with Stremio, Nuvio or any streaming service.</p>
 </div></footer>
-
-<div class="mbar"><span class="mut"><b class="js-count">${keys.length}</b> of ${ALL_KEYS.length} catalogs</span><a class="btn primary js-install" href="${esc(appInstall)}">Install in Stremio</a></div>
 
 <script>
 (function () {
 var KEYS = ${js(ALL_KEYS)}, NAMES = ${js(names)}, PRESETS = ${js(Object.fromEntries(Object.entries(presets).map(([p, v]) => [p, v[1]])))};
-var BASE = ${js(base)}, HOST = ${js(host)}, UP = ${js(icon("M4 10l4-4 4 4"))}, DOWN = ${js(icon("M4 6l4 4 4-4"))};
+var BASE = ${js(base)}, HOST = ${js(host)}, UP = ${js(icon("M4 10l4-4 4 4"))}, DOWN = ${js(icon("M4 6l4 4 4-4"))}, START = ${js(start)};
 var order = ${js(keys)};
 var $ = function (s) { return document.querySelector(s); };
 var all = function (s) { return [].slice.call(document.querySelectorAll(s)); };
 var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
 var sameSet = function (a, b) { return a.length === b.length && a.every(function (k) { return b.indexOf(k) >= 0; }); };
 var defaultOrder = function () { return KEYS.filter(function (k) { return order.indexOf(k) >= 0; }); };
+
+// ---- the wizard: 1. app, then Stremio: 2. catalogs, 3. install; Nuvio: 2. sign in ----
+var app = START === "cats" ? "stremio" : null, step = "app";
+var STEPS = { stremio: [["app", "App"], ["cats", "Catalogs"], ["install", "Install"]], nuvio: [["app", "App"], ["nuvio", "Sign in"]] };
+function go(s) {
+  step = s;
+  all(".pane").forEach(function (p) { p.hidden = p.getAttribute("data-step") !== s; });
+  var list = STEPS[app || "stremio"], at = 0;
+  list.forEach(function (x, i) { if (x[0] === s) at = i; });
+  $("#steps").innerHTML = (app ? list : [["app", "App"], ["", "…"]]).map(function (x, i) {
+    return '<li class="' + (i < at ? "done" : i === at ? "on" : "") + '"' + (i === at ? ' aria-current="step"' : "") + ">" + (i + 1) + ". " + x[1] + "</li>";
+  }).join("");
+}
+all("[data-app]").forEach(function (b) {
+  b.addEventListener("click", function () { app = b.getAttribute("data-app"); go(app === "nuvio" ? "nuvio" : "cats"); });
+});
+all("[data-go]").forEach(function (b) { b.addEventListener("click", function () { go(b.getAttribute("data-go")); }); });
+
+// ---- catalogs: presets, and one list to switch them on or off and set their order ----
 function moveBtn(k, d, label, off) {
   return '<button type="button" data-k="' + k + '" data-d="' + d + '" aria-label="Move ' + esc(NAMES[k][0]) + " " + label + '"' + (off ? " disabled" : "") + ">" + (d < 0 ? UP : DOWN) + "</button>";
+}
+function row(k, i) {
+  var on = i >= 0;
+  return '<li class="' + (on ? "on" : "off") + '"><label class="sw"><input type="checkbox" value="' + k + '"' + (on ? " checked" : "") + ' aria-label="' + esc(NAMES[k][0]) + '"><i></i></label>'
+    + '<span class="oname">' + esc(NAMES[k][0]) + "<small>" + NAMES[k][1] + "</small></span>"
+    + (on ? moveBtn(k, -1, "up", i === 0) + moveBtn(k, 1, "down", i === order.length - 1) : "") + "</li>";
 }
 function render() {
   var cfg = order.join(",") === KEYS.join(",") ? "" : "/" + order.join(",");
@@ -1272,18 +1234,15 @@ function render() {
   $("#murl").value = m;
   all(".js-install").forEach(function (a) { a.href = "stremio://" + HOST + cfg + "/manifest.json"; });
   all(".js-web").forEach(function (a) { a.href = "https://web.stremio.com/#/addons?addon=" + encodeURIComponent(m); });
-  all(".js-nuvio").forEach(function (a) { a.href = "nuvio://" + HOST + cfg + "/manifest.json"; });
-  all(".js-count").forEach(function (e) { e.textContent = order.length; });
-  all("#cats input").forEach(function (b) { b.checked = order.indexOf(b.value) >= 0; b.closest(".cat").classList.toggle("on", b.checked); });
+  var sum = !order.length ? "No catalogs" : order.length === KEYS.length ? "All " + KEYS.length + " catalogs" : order.length + " of " + KEYS.length + " catalogs";
+  all(".js-sum").forEach(function (e) { e.textContent = sum; });
   all("#presets button").forEach(function (b) { var on = sameSet(PRESETS[b.getAttribute("data-p")], order); b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
-  $("#order").innerHTML = order.length ? order.map(function (k, i) {
-    return '<li><span class="num">' + (i + 1) + '</span><span class="oname">' + esc(NAMES[k][0]) + "<small>" + NAMES[k][1] + "</small></span>"
-      + moveBtn(k, -1, "up", i === 0) + moveBtn(k, 1, "down", i === order.length - 1) + "</li>";
-  }).join("") : '<li class="empty">Switch on at least one catalog.</li>';
+  $("#clist").innerHTML = order.map(row).join("") + KEYS.filter(function (k) { return order.indexOf(k) < 0; }).map(function (k) { return row(k, -1); }).join("");
   $("#resetorder").disabled = order.join(",") === defaultOrder().join(",");
+  $("#catnext").disabled = !order.length;
   document.body.classList.toggle("none", !order.length);
 }
-$("#cats").addEventListener("change", function (e) {
+$("#clist").addEventListener("change", function (e) {
   var k = e.target.value, i = order.indexOf(k);
   if (!k) return;
   if (e.target.checked && i < 0) order.push(k);
@@ -1294,18 +1253,19 @@ $("#presets").addEventListener("click", function (e) {
   var b = e.target.closest("button[data-p]");
   if (b) { order = PRESETS[b.getAttribute("data-p")].slice(); render(); }
 });
-$("#order").addEventListener("click", function (e) {
+$("#clist").addEventListener("click", function (e) {
   var b = e.target.closest("button[data-d]");
   if (!b) return;
   var k = b.getAttribute("data-k"), d = b.getAttribute("data-d"), i = order.indexOf(k), j = i + Number(d);
   if (i < 0 || j < 0 || j >= order.length) return;
   order.splice(j, 0, order.splice(i, 1)[0]);
   render();
-  var next = document.querySelector('#order button[data-k="' + k + '"][data-d="' + d + '"]:not(:disabled)') || document.querySelector('#order button[data-k="' + k + '"]:not(:disabled)');
+  var next = document.querySelector('#clist button[data-k="' + k + '"][data-d="' + d + '"]:not(:disabled)') || document.querySelector('#clist button[data-k="' + k + '"]:not(:disabled)');
   if (next) next.focus();
 });
 $("#resetorder").addEventListener("click", function () { order = defaultOrder(); render(); });
-all(".tiles img").forEach(function (img) { // the focus animation, on hover
+if (START === "cats" && !sameSet(order, KEYS)) $("#custom").open = true; // Configure from Stremio: show the choice
+all(".strip img").forEach(function (img) { // the focus animation, on hover
   var still = img.getAttribute("src");
   img.addEventListener("mouseenter", function () { img.src = img.getAttribute("data-focus"); });
   img.addEventListener("mouseleave", function () { img.src = still; });
@@ -1350,7 +1310,7 @@ function addTfi(raw) {
   var count = mine.filter(function (c) { return c && tfiIds.indexOf(c.id) < 0; }).length;
   return { text: JSON.stringify(out), count: count };
 }
-var copied = function (r) { return "Copied: your " + r.count + " collection" + (r.count === 1 ? "" : "s") + " plus TFI Movies. Now paste it in Nuvio (step 4)."; };
+var copied = function (r) { return "Copied: your " + r.count + " collection" + (r.count === 1 ? "" : "s") + " plus TFI Movies. Now paste it in Nuvio (step 3)."; };
 var pending = null; // a result that couldn't be copied without another tap
 function manual(why) {
   $("#manual").open = true;
@@ -1362,9 +1322,9 @@ $("#addtfi").addEventListener("click", function () {
   $("#copyresult").hidden = true;
   if (!(navigator.clipboard && navigator.clipboard.readText && window.isSecureContext)) return manual("This browser can't read what you copied.");
   navigator.clipboard.readText().then(function (raw) {
-    if (!String(raw || "").trim()) return say("Nothing copied yet: in Nuvio tap the Copy icon first (step 2).", "err");
+    if (!String(raw || "").trim()) return say("Nothing copied yet: in Nuvio tap the Copy icon first (step 1).", "err");
     var r = addTfi(raw);
-    if (!r) return say("What you copied isn't Nuvio's collections. In Nuvio tap the Copy icon again (step 2), then come back and tap Add TFI Movies.", "err");
+    if (!r) return say("What you copied isn't Nuvio's collections. In Nuvio tap the Copy icon again (step 1), then come back and tap Add TFI Movies.", "err");
     copyText(r.text, function () { say(copied(r), "ok"); }, function () {
       pending = r; // the browser wants a fresh tap before it lets the page copy
       $("#copyresult").hidden = false;
@@ -1392,7 +1352,7 @@ $("#combine").addEventListener("click", function () {
 });
 $("#copytfi").addEventListener("click", function () {
   copyText(JSON.stringify(TFI), function () {
-    say("Copied the TFI collection. Now paste it in Nuvio (step 4). It replaces any collections you have there.", "ok");
+    say("Copied the TFI collection. Now paste it in Nuvio (step 3). It replaces any collections you have there.", "ok");
   }, function () { say("Couldn't copy. Open " + BASE + "/nuvio-collections.json and copy everything there.", "err"); });
 });
 function copyButton(b, value) {
@@ -1430,7 +1390,7 @@ function nvError(e, what) {
   if (e && e.status === 429) return "Too many tries. Wait a minute and try again.";
   if (e && e.status === 401) return "Nuvio signed you out. Sign in again.";
   if (e && !e.status) return "Couldn't reach Nuvio. Check your connection and try again.";
-  return what + " Nuvio said: " + (e && e.message ? e.message : "unknown error") + ". You can use the copy and paste steps below instead.";
+  return what + " Nuvio said: " + (e && e.message ? e.message : "unknown error") + ". You can use the copy and paste steps under Other ways to install instead.";
 }
 // Same JSON whatever the key order (Nuvio's database reorders keys).
 function canon(v) {
@@ -1469,7 +1429,7 @@ function renderProfiles() {
   $("#nhint").textContent = open.length ? "Tap a profile to add it." : "All your profiles are locked.";
   var locked = nv.profiles.filter(function (p) { return p.pin_enabled; }).map(function (p) { return pname(p.profile_index); });
   $("#nlocknote").hidden = !locked.length;
-  $("#nlocknote").textContent = locked.length ? "🔒 " + names(locked) + (locked.length > 1 ? " are" : " is") + " locked with a PIN, and Nuvio doesn't let other sites unlock profiles. To add TFI Movies there, turn the PIN off in Nuvio for a moment and tap the profile here, then turn the PIN back on. Or open that profile in Nuvio and use the copy and paste steps below." : "";
+  $("#nlocknote").textContent = locked.length ? "🔒 " + names(locked) + (locked.length > 1 ? " are" : " is") + " locked with a PIN, and Nuvio doesn't let other sites unlock profiles. To add TFI Movies there, turn the PIN off in Nuvio for a moment and tap the profile here, then turn the PIN back on. Or open that profile in Nuvio and use the copy and paste steps under Other ways to install." : "";
 }
 // Read a profile's collections; null when Nuvio has nothing synced for it yet.
 function pull(i) { return nvCall("/rest/v1/rpc/sync_pull_collections", { p_profile_id: i }).then(function (rows) { return rows && rows[0] ? rows[0] : null; }); }
@@ -1477,7 +1437,7 @@ function pull(i) { return nvCall("/rest/v1/rpc/sync_pull_collections", { p_profi
 function ensureAddon(i) {
   var ap = addonProfile(i), src = profileOf(ap);
   if (nv.addonsOk[ap] || src && src.pin_enabled) return Promise.resolve(false); // never write to a locked profile
-  var fail = { mine: "TFI Movies was added, but the catalogs couldn't be installed. Use Install in Nuvio in the steps below." };
+  var fail = { mine: "TFI Movies was added, but the catalogs couldn't be installed. Use Other ways to install, below." };
   var list;
   // A push replaces the whole addon list, so it's read right before: nothing added meanwhile is lost.
   return nvCall("/rest/v1/addons?select=url,name,enabled,sort_order&profile_id=eq." + ap + "&order=sort_order", null, "GET")
@@ -1500,7 +1460,7 @@ function addTo(i, emptyOk) {
     var cur = row ? (row.collections_json || []) : [];
     had = hasTfi(cur); // then it's only brought up to date (Nuvio's apps also rewrite some fields), not "added"
     var r = addTfi(JSON.stringify(cur));
-    if (!r) throw { mine: pname(i) + "'s collections on Nuvio aren't in a form this page knows, so they were left alone. Use the copy and paste steps below." };
+    if (!r) throw { mine: pname(i) + "'s collections on Nuvio aren't in a form this page knows, so they were left alone. Use the copy and paste steps under Other ways to install." };
     var next = JSON.parse(r.text);
     changed = canon(next) !== canon(cur);
     return (changed ? nvCall("/rest/v1/rpc/sync_push_collections", { p_profile_id: i, p_collections_json: next })
@@ -1598,6 +1558,11 @@ function nvSignOut(keepalive) { // ends only this page's session, not the user's
 $("#nsignout").addEventListener("click", function () { nvSignOut(false); signedOut(); smsg("Signed out.", "ok"); });
 window.addEventListener("pagehide", function () { nvSignOut(true); });
 render();
+go(START === "cats" ? "cats" : "app");
+// links from before the wizard: #nuvio opens the Nuvio step, #customize the Stremio catalogs
+var HASH = typeof location !== "undefined" ? location.hash : "";
+if (HASH === "#nuvio") { app = "nuvio"; go("nuvio"); }
+if (HASH === "#customize") { app = "stremio"; go("cats"); }
 })();
 </script>
 </body></html>`;
@@ -1649,7 +1614,7 @@ export default async function handler(req, res) {
     if (cm && (keys = parseConfig(cm[1]))) path = cm[2];
     if (path === "/" || path === "/configure") {
       const data = await Promise.race([landingData().catch(() => null), sleep(4000).then(() => null)]);
-      return send(res, 200, landing(host, base, data || { lists: {} }, keys || ALL_KEYS), data ? 3600 : 300, "text/html; charset=utf-8");
+      return send(res, 200, landing(host, base, data || { lists: {} }, keys || ALL_KEYS, path === "/configure" ? "cats" : "app"), data ? 3600 : 300, "text/html; charset=utf-8");
     }
     if (path === "/manifest.json") return send(res, 200, manifest(base, keys || ALL_KEYS), 3600);
     // What the home server's daily Telugu-audio check looks up
