@@ -113,6 +113,12 @@ const TV_SKIP_GENRES = "10763|10764|10766|10767"; // News, Reality, Soap, Talk (
 const SERIES_SKIP_TITLES = new RegExp(env("SERIES_SKIP_TITLES",
   "bigg boss|indian idol|super singer|sa ?re ?ga ?ma ?pa|masterchef|khatron|roadies|splitsvilla|kaun banega|shark tank|cook with comali|\\bdhee\\b|koffee with|unstoppable with|comedy (nights|stars)|\\baward"), "i");
 const skipTitle = (s) => SERIES_SKIP_TITLES.test(`${s.name || ""} ${s.original_name || ""}`);
+// TV channels (TMDB network names): their shows are daily serials, not web series (Star Maa, Zee Telugu, 2026-11-15).
+// OTT services (ETV Win, Zee5, Sun NXT) don't match.
+const TV_CHANNELS = new RegExp(env("SERIES_TV_CHANNELS",
+  "^(star ?maa|maa tv|zee telugu|gemini( tv)?|etv( telugu| plus)?|star ?plus|star bharat|star vijay|vijay tv|star suvarna|asianet|" +
+  "colors( tv| kannada| tamil| marathi| bangla| rishtey)?|zee (tv|tamil|kannada|keralam|marathi|bangla)|sony (tv|entertainment television|sab)|" +
+  "sab tv|&tv|and tv|sun tv|kalaignar tv|raj tv|surya tv|udaya tv|mazhavil manorama|flowers tv|dangal( tv)?|dd national|doordarshan)$"), "i");
 // Does a film (from filmInfo) belong in this catalog? Same rules as the TMDB queries above.
 const fits = (def, info) => info && info.primary && info.primary <= today() && def.langs().includes(info.lang) &&
   (info.votes || 0) >= def.minVotes() && !(MIN_RUNTIME > 0 && info.runtime && info.runtime < MIN_RUNTIME);
@@ -314,14 +320,18 @@ async function discoverOtt(def, skip, count, since) {
 
 // ---------- Series ----------
 // Latest web series for a catalog. A show ranks by the start of its newest season, so a new season of an
-// old show comes up next to brand-new shows. Seasons are looked up for shows with a recent episode and
-// shows that started in the last year; older shows keep their first-episode date.
+// old show comes up next to brand-new shows. Every show's details are looked up, for its seasons and to leave out
+// TV serials (daily soaps), which TMDB types as "Scripted" dramas like any web series.
 // Series reported as new on OTT in the news are added too (TMDB often misses aha / ETV Win originals). Their news date
 // is used when TMDB has no started season for them yet, or only an older season than the news reports.
 async function discoverSeries(def, skip, count, news = seriesNewsMatches(), audio = null) {
   if (def.dubbed && !audio) audio = await getAudio();
   if (def.dubbed && !audio) return Object.assign([], { candidates: 0 });
-  if (!def.dubbed && skip >= 300) return (await discoverOtt(def, skip, count)).filter((s) => !skipTitle(s));
+  if (!def.dubbed && skip >= 300) {
+    const list = (await discoverOtt(def, skip, count)).filter((s) => !skipTitle(s));
+    const infos = await mapLimit(list, CONCURRENCY, (s) => showInfo(s.id));
+    return list.filter((s, i) => infos[i] && !infos[i].serial);
+  }
   const [newest, airing] = await Promise.all([
     def.dubbed ? discoverOtt(def, 0, POOL_PAGES * TMDB_PAGE, daysAgo(POOL_DAYS)) : discoverOtt(def, 0, skip + count),
     recentlyAiring(def)]);
@@ -333,12 +343,13 @@ async function discoverSeries(def, skip, count, news = seriesNewsMatches(), audi
   for (const id of newsBy.keys()) if (!seen.has(id)) { seen.add(id); pool.push({ id, viaNews: true }); }
   const candidates = pool.length;
   if (def.dubbed) pool = pool.filter((s) => hasTelugu(audio, "tv", s.id, newsBy.get(s.id)));
-  const recent = daysAgo(365);
-  const infos = await mapLimit(pool, CONCURRENCY, (s) =>
-    s.viaNews || airingIds.has(s.id) || newsBy.has(s.id) || (s.first_air_date || "") >= recent ? showInfo(s.id) : null);
+  // Every show is looked up (cached for 6 hours): TV serials are only told apart by their details. A show whose
+  // lookup failed is left out rather than listed unchecked (soaps got in that way, 2026-11-15); the sync's
+  // "kept as it was" check covers a TMDB outage.
+  const infos = await mapLimit(pool, CONCURRENCY, (s) => showInfo(s.id));
   const ranked = pool.map((s, i) => {
     const info = infos[i];
-    if (info?.serial) return null;
+    if (!info || info.serial) return null;
     if (s.viaNews && !(info && def.langs().includes(info.lang) && info.votes >= def.minVotes() && !skipTitle(info.item))) return null;
     const first = (s.first_air_date || "").slice(0, 10);
     const n = newsBy.get(s.id);
@@ -374,8 +385,16 @@ async function showInfo(id) {
     const t = today();
     const seasons = (d.seasons || []).filter((s) => s.season_number > 0);
     const latest = seasons.filter((s) => s.air_date && s.air_date <= t).sort((a, b) => b.air_date.localeCompare(a.air_date))[0];
-    // Daily soaps have hundreds of episodes a season; reality and talk shows are typed as such on TMDB.
-    const serial = (SERIES_MAX_EPISODES > 0 && seasons.some((s) => s.episode_count > SERIES_MAX_EPISODES)) ||
+    // Daily soaps have hundreds of episodes a season (a season's own count can lag behind the show's total:
+    // Karthika Deepam, 2 vs 347), or air on a TV channel; reality and talk shows are typed as such on TMDB.
+    // Bulk-added TV serials often have just 1 or 2 episodes and no network on TMDB, which no web series that started
+    // months ago has (24 such serials in Telugu Series on 2026-11-15; its real web series had 4 episodes or more).
+    const networks = (d.networks || []).map((n) => n.name || "");
+    const episodes = d.number_of_episodes || seasons.reduce((a, s) => a + (s.episode_count || 0), 0);
+    const stub = episodes <= 2 && !networks.length && !!d.first_air_date && d.first_air_date < daysAgo(90);
+    const serial = (SERIES_MAX_EPISODES > 0 && (seasons.some((s) => s.episode_count > SERIES_MAX_EPISODES) ||
+        episodes > SERIES_MAX_EPISODES * Math.max(1, seasons.length))) ||
+      networks.some((n) => TV_CHANNELS.test(n)) || stub ||
       /reality|talk|news|video/i.test(d.type || "") || (d.genres || []).some((g) => [10763, 10764, 10766, 10767].includes(g.id));
     const imdb = /^tt\d+$/.test(d.external_ids?.imdb_id || "") ? d.external_ids.imdb_id : null;
     const item = { id: d.id, name: d.name, original_name: d.original_name, poster_path: d.poster_path, backdrop_path: d.backdrop_path,
