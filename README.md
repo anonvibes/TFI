@@ -99,7 +99,8 @@ Set these in Vercel under **Settings → Environment Variables**, then redeploy.
 | `DUB_SERIES_MIN_VOTES` | `0` | Minimum TMDB votes for "Telugu Dubbed Series: South" |
 | `EN_SERIES_MIN_VOTES` | `20` | Minimum TMDB votes for "Telugu Dubbed Series: English" |
 | `HINDI_SERIES_MIN_VOTES` | `0` | Minimum TMDB votes for "Telugu Dubbed Series: Hindi" |
-| `SERIES_MAX_EPISODES` | `40` | A series with a longer season counts as a TV serial and is left out; `0` turns it off |
+| `SERIES_MAX_EPISODES` | `40` | A series with a longer season (or more episodes than this per season overall) counts as a TV serial and is left out; `0` turns it off |
+| `SERIES_TV_CHANNELS` | `^(star ?maa\|zee telugu\|gemini( tv)?\|…)$` | Series on a TMDB network whose name matches are TV serials and are left out |
 | `SERIES_SKIP_TITLES` | `bigg boss\|indian idol\|…` | Series whose names match are left out (reality and talk shows TMDB lists as scripted) |
 | `CACHE_HOURS` | `6` | How often the addon's catalogs refresh |
 | `WATCH_REGION` | `IN` | Streaming region |
