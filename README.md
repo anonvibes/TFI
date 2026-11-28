@@ -4,7 +4,7 @@
 
 A free Stremio addon with movies and web series **in Telugu**, new on Indian OTT: the latest Telugu releases, plus Tamil, Malayalam, Kannada, English and Hindi titles dubbed in Telugu. Eight catalogs, refreshed automatically every day, also published as public TMDB lists.
 
-**Install:** open [tfi-movies.vercel.app](https://tfi-movies.vercel.app), pick the catalogs you want (and their order) and press *Install in Stremio*, or paste `https://tfi-movies.vercel.app/manifest.json` (all catalogs) into the search box on Stremio's Addons page.
+**Install:** open [tfi-movies.vercel.app](https://tfi-movies.vercel.app) and press *Install*: your phone or computer asks which app to open it with (Stremio, Nuvio or another app that takes Stremio addons). Press *Configure* first to pick the catalogs you want and their order. Or paste `https://tfi-movies.vercel.app/manifest.json` (all catalogs) into the search box on your app's Addons page.
 
 TFI Movies only adds catalogs (posters, details, ratings and trailers). It doesn't host or link to any video.
 
@@ -46,13 +46,14 @@ Each holds up to 100 series on the same platforms. A series is ranked by when it
 
 ## Stremio addon
 
-The addon shows the same eight catalogs (movies under Movies, series under Series): the first 100 titles in each come straight from the TMDB lists, and scrolling further loads older ones. Pick catalogs and their order on the home page (or start from a preset: Telugu originals, dubbed only, movies only, series only), or name them in the link, in the order Stremio should show them: `https://tfi-movies.vercel.app/te,south,te-tv/manifest.json` (keys `te`, `south`, `en`, `hi` for movies and `te-tv`, `south-tv`, `en-tv`, `hi-tv` for series). Stremio's *Configure* button opens the picker again. Movies and series use IMDb IDs where they have one, so other Stremio addons (subtitles, for example) work with them as usual.
+The addon shows the same eight catalogs (movies under Movies, series under Series): the first 100 titles in each come straight from the TMDB lists, and scrolling further loads older ones. Pick catalogs and their order with *Configure* on the home page (or start from a quick choice: Telugu originals, movies only, series only), or name them in the link, in the order Stremio should show them: `https://tfi-movies.vercel.app/te,south,te-tv/manifest.json` (keys `te`, `south`, `en`, `hi` for movies and `te-tv`, `south-tv`, `en-tv`, `hi-tv` for series). Stremio's *Configure* button opens the picker again. Movies and series use IMDb IDs where they have one, so other Stremio addons (subtitles, for example) work with them as usual.
 
 ## Nuvio collection
 
 [Nuvio](https://github.com/NuvioMedia/NuvioTV) installs the same addon link, and can show the catalogs as a collection: a "TFI Movies" row with one tile per catalog. Install the addon in Nuvio with all eight catalogs on, then:
 
-- **Phone:** Nuvio's phone app imports collections only by pasting, and the paste replaces all your collections. So in Nuvio open **Settings → Layout → Collections** and tap the Copy icon, paste that into the box in the [Nuvio section of the home page](https://tfi-movies.vercel.app/#nuvio) and tap *Add TFI and copy*, then tap Nuvio's Paste icon, paste and import. Your own collections come back along with TFI Movies.
+- **With your Nuvio account:** sign in in the [Nuvio collections section of the home page](https://tfi-movies.vercel.app/#nuvio) and tap a profile. The collection goes on all your devices, and the catalogs are installed if the profile doesn't have them. Your password goes only to Nuvio.
+- **Phone, without signing in:** Nuvio's phone app imports collections only by pasting, and the paste replaces all your collections. So in Nuvio open **Settings → Layout → Collections** and tap the Copy icon, then open *Other ways to add collections* in that section of the home page and tap *Add TFI Movies*, then tap Nuvio's Paste icon, paste and import. Your own collections come back along with TFI Movies.
 - **TV:** **Addons → Collections → Import → From URL** with `https://tfi-movies.vercel.app/nuvio-collections.json`. The TV app adds it next to your own collections.
 
 Each tile's art is drawn from its list, so it changes when the list does, without importing again:
