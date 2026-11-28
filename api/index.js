@@ -339,7 +339,11 @@ async function discoverSeries(def, skip, count, news = seriesNewsMatches(), audi
   const newsBy = new Map();
   for (const n of news) if (!newsBy.has(n.id) || (n.season || 1) > (newsBy.get(n.id).season || 1)) newsBy.set(n.id, { ...n, teAudio: n.teAudio || newsBy.get(n.id)?.teAudio });
   const seen = new Set();
-  let pool = [...airing, ...newest].filter((s) => s && !seen.has(s.id) && seen.add(s.id) && !skipTitle(s));
+  let pool = [...airing, ...newest].filter((s) => s && !seen.has(s.id) && seen.add(s.id));
+  // Shows TMDB returned that are left out on purpose (reality shows by name, TV serials): the sync doesn't count
+  // them as missing when it checks whether TMDB gave too little.
+  const leftOut = new Set(pool.filter(skipTitle).map((s) => s.id));
+  pool = pool.filter((s) => !leftOut.has(s.id));
   for (const id of newsBy.keys()) if (!seen.has(id)) { seen.add(id); pool.push({ id, viaNews: true }); }
   const candidates = pool.length;
   if (def.dubbed) pool = pool.filter((s) => hasTelugu(audio, "tv", s.id, newsBy.get(s.id)));
@@ -349,7 +353,8 @@ async function discoverSeries(def, skip, count, news = seriesNewsMatches(), audi
   const infos = await mapLimit(pool, CONCURRENCY, (s) => showInfo(s.id));
   const ranked = pool.map((s, i) => {
     const info = infos[i];
-    if (!info || info.serial) return null;
+    if (!info) return null;
+    if (info.serial) { leftOut.add(s.id); return null; }
     if (s.viaNews && !(info && def.langs().includes(info.lang) && info.votes >= def.minVotes() && !skipTitle(info.item))) return null;
     const first = (s.first_air_date || "").slice(0, 10);
     const n = newsBy.get(s.id);
@@ -357,7 +362,7 @@ async function discoverSeries(def, skip, count, news = seriesNewsMatches(), audi
     return { ...(info?.item || s), ott_date: useNews ? n.date : info?.seasonDate || first, season: useNews ? n.season || 1 : info?.season || 1, via_news: !!s.viaNews };
   }).filter((s) => s && !(def.dubbed && s.ott_date < daysAgo(POOL_DAYS)));
   ranked.sort((a, b) => b.ott_date.localeCompare(a.ott_date) || (b.first_air_date || "").localeCompare(a.first_air_date || ""));
-  return Object.assign(ranked.slice(skip, skip + count), { candidates });
+  return Object.assign(ranked.slice(skip, skip + count), { candidates, leftOut });
 }
 
 // Shows on Indian OTT with an episode in the last SERIES_DAYS days (up to 200, most popular first).
@@ -542,13 +547,16 @@ async function syncLists(media = "movie") {
     // keep the current list until TMDB recovers rather than emptying it. Dubbed lists shrink when titles without
     // Telugu audio drop out, so for them it's the candidate count (before the audio check) that has to hold up;
     // it can be small (24 Tamil/Malayalam/Kannada series and 91 Hindi films on 2026-11-06), but not near zero.
-    const tooFew = def.dubbed ? ranked.candidates < 10 : wanted.length < current.length * 0.8;
+    // Series left out on purpose (TV serials) aren't missing: counting them as such kept Telugu Series as it was,
+    // 21 posterless soaps and all, from 2026-11-21 until 2026-11-28.
+    const currentIds = current.filter((i) => (i.media_type || "movie") === media).map((i) => i.id);
+    const leftOut = ranked.leftOut ? currentIds.filter((id) => ranked.leftOut.has(id)).length : 0;
+    const tooFew = def.dubbed ? ranked.candidates < 10 : wanted.length + leftOut < current.length * 0.8;
     if (current.length >= 50 && tooFew) {
       report.push({ list: def.name, url: `https://www.themoviedb.org/list/${list.id}`, [count]: current.length, added: 0, removed: 0, reordered: false, ...(isTv ? {} : { from_news: [] }), note: `kept as it was: TMDB gave only ${def.dubbed ? ranked.candidates : wanted.length} ${isTv ? "series" : "films"}` });
       continue;
     }
     const want = new Set(wanted);
-    const currentIds = current.filter((i) => (i.media_type || "movie") === media).map((i) => i.id);
     const have = new Set(currentIds);
     const added = wanted.filter((id) => !have.has(id)).length;
     const removed = current.length - currentIds.filter((id) => want.has(id)).length;
@@ -611,7 +619,7 @@ async function syncLists(media = "movie") {
   const { sample: _a, ...sacnilk } = news.stats.sacnilk || {};
   const { sample: _b, ...telugu123 } = news.stats.telugu123 || {};
   return { ok: true, synced_at: new Date().toISOString(), lists: report,
-    news: { ...news.stats, sacnilk, telugu123, review: "/review" } };
+    news: { ...news.stats, sacnilk, telugu123, review: "/review?key=<CRON_SECRET>" } };
 }
 
 // Current contents of your TMDB lists (used by the addon and the review page)
@@ -1754,8 +1762,10 @@ export default async function handler(req, res) {
       return send(res, 200, await syncLists(path === "/sync" ? "movie" : "tv"), 0);
     }
 
-    // What may need a look: possibly missing films, and news reports that couldn't be matched
+    // What may need a look: possibly missing films, and news reports that couldn't be matched. For the owner only,
+    // like /sync: building it reads the news sites and makes many TMDB calls, too costly to run for any visitor.
     if (path === "/review" || path === "/review.json") {
+      if (CRON_SECRET && url.searchParams.get("key") !== CRON_SECRET) return send(res, 401, { error: "unauthorized" }, 0);
       const r = await review();
       if (path === "/review.json") return send(res, 200, { generated_at: new Date().toISOString(), news_stats: r.news.stats, missing: r.missing, unsure: r.news.unsure, not_found: r.news.notFound, matched: r.news.matched }, 0);
       return send(res, 200, page("TFI Movies · Review", reviewHtml({ news: r.news, missing: r.missing, inLists: r.inLists, generatedAt: new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC", esc })), 0, "text/html; charset=utf-8");
