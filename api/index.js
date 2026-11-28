@@ -891,9 +891,14 @@ async function boardItems() {
   return items;
 }
 
-// What the home page shows besides its fixed text: the board. A /configure page has no board and needs nothing.
+// What the home page shows besides its fixed text: the board, and links to the TMDB lists. A /configure page has
+// neither and needs nothing.
 async function landingData(home) {
-  return { board: home ? await boardItems() : [] };
+  if (!home) return { board: [], lists: {} };
+  const board = await boardItems(); // this reads the list index, so the links below cost no further TMDB calls
+  const lists = {};
+  for (const def of ALL_DEFS) { const list = await findList(def).catch(() => null); if (list) lists[def.key] = list.id; }
+  return { board, lists };
 }
 
 const PLATFORM_NAMES = ["Netflix", "Prime Video", "JioHotstar", "aha", "ZEE5", "SonyLIV", "Sun NXT", "ETV Win"];
@@ -1010,6 +1015,17 @@ function landing(host, base, data, keys = ALL_KEYS, start = "app") {
         <div class="combine"><textarea id="mine" rows="3" spellcheck="false" autocomplete="off" placeholder="Paste what Nuvio's Copy icon copied" aria-label="Your Nuvio collections"></textarea>
         <button type="button" class="btn" id="combine">Add TFI Movies and copy</button></div></details>
     </div></details>
+  </div>
+</section>` : "";
+  // For people who want the lists without the addon: the same eight lists, public on TMDB.
+  const listed = home && data.lists ? ALL_DEFS.filter((d) => data.lists[d.key]) : [];
+  const listLinks = (media) => listed.filter((d) => d.media === media).map((d) => `<li><a href="https://www.themoviedb.org/list/${encodeURIComponent(data.lists[d.key])}" target="_blank" rel="noopener">${esc(d.name)}</a></li>`).join("");
+  const listsHtml = listed.length ? `<section class="lists" id="lists" aria-labelledby="listsh">
+  <h2 id="listsh">Just want the lists?</h2>
+  <p>The same lists are public on TMDB, refreshed every morning. You don't need the addon to use them.</p>
+  <div class="lcols">
+    ${listLinks("movie") ? `<div><h3>Movies</h3><ul>${listLinks("movie")}</ul></div>` : ""}
+    ${listLinks("tv") ? `<div><h3>Series</h3><ul>${listLinks("tv")}</ul></div>` : ""}
   </div>
 </section>` : "";
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1186,6 +1202,15 @@ h1 sup{font-size:.5em;vertical-align:baseline;position:relative;top:-.72em}
 .acct .done ol{margin:4px 0 0;padding-left:18px;color:var(--fg);font-size:14px}
 .acct .done .d{margin:6px 0 0}
 .acct .who{color:var(--dim);font-size:13px;margin:12px 0 0}
+.lists{max-width:760px;padding:64px 0 0}
+.lists h2{font-size:clamp(24px,3vw,30px);margin:0 0 8px;letter-spacing:-.01em}
+.lists p{color:var(--mut);margin:0 0 18px}
+.lcols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 40px}
+.lists h3{margin:0 0 6px;font-size:14px;color:var(--dim);font-weight:600}
+.lists ul{list-style:none;margin:0;padding:0}
+.lists li{border-bottom:1px solid var(--line)}
+.lists li a{display:block;padding:11px 0;color:var(--fg);text-decoration:none;font-weight:600}
+.lists li a:hover{color:var(--acc2)}
 .faq{max-width:760px;padding:64px 0 24px}
 .faq h2{font-size:clamp(24px,3vw,30px);margin:0 0 8px;letter-spacing:-.01em}
 .faq details{border-bottom:1px solid var(--line)}
@@ -1210,7 +1235,7 @@ footer a{color:var(--mut)}
   .cfg{grid-template-columns:minmax(0,1fr);margin-bottom:34px}
   .nv{grid-template-columns:minmax(0,1fr);padding-top:56px}
 }
-@media (max-width:560px){.wrap{padding:0 16px}.top .wrap{height:56px;gap:10px}nav a{font-size:13px;padding:7px 8px}nav a.gh{display:none}
+@media (max-width:560px){.lcols{grid-template-columns:minmax(0,1fr)}.wrap{padding:0 16px}.top .wrap{height:56px;gap:10px}nav a{font-size:13px;padding:7px 8px}nav a.gh{display:none}
   .bill{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 10px}.bill .g2{display:none}.cfg{padding:16px}.acct{padding:16px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
 </style></head><body>
@@ -1225,6 +1250,7 @@ ${heroHtml}
 ${cfgHtml}
 ${boardHtml}
 ${nuvioHtml}
+${listsHtml}
 
 <section id="faq" class="faq">
   <h2>Questions</h2>
@@ -1683,7 +1709,7 @@ export default async function handler(req, res) {
     if (path === "/" || path === "/configure") {
       // No board data in time: the page goes out without the board, and is kept only 5 minutes so the next build retries.
       const data = await Promise.race([landingData(path === "/").catch(() => null), sleep(4000).then(() => null)]);
-      return send(res, 200, landing(host, base, data || { board: [] }, keys || ALL_KEYS, path === "/configure" ? "cats" : "app"), data ? 3600 : 300, "text/html; charset=utf-8");
+      return send(res, 200, landing(host, base, data || { board: [], lists: {} }, keys || ALL_KEYS, path === "/configure" ? "cats" : "app"), data ? 3600 : 300, "text/html; charset=utf-8");
     }
     if (path === "/manifest.json") return send(res, 200, manifest(base, keys || ALL_KEYS), 3600);
     // What the home server's daily Telugu-audio check looks up
