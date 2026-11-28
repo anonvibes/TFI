@@ -39,6 +39,13 @@ const POOL_PAGES = 25; // up to 500 candidates per dubbed catalog
 const TMDB = env("TMDB_API_BASE", "https://api.themoviedb.org/3"); // overrides are for testing only
 const TMDB4 = env("TMDB_API_BASE4", "https://api.themoviedb.org/4");
 const IMG = "https://image.tmdb.org/t/p/";
+// Posters, backgrounds and episode stills in the addon link to this site's /img/<size>/<file>, which fetches them
+// from TMDB and is kept by Vercel for 30 days, so apps never contact TMDB (Indian networks slow it down). It uses
+// Vercel bandwidth: IMAGE_PROXY=off links straight to TMDB's image server instead.
+const IMAGE_PROXY = env("IMAGE_PROXY", "on") !== "off";
+const IMG_SIZES = ["w185", "w300", "w342", "w500", "w1280"];
+const img = (base, size, file) => !file ? undefined
+  : IMAGE_PROXY && /^\/[A-Za-z0-9]{8,64}\.(jpg|png)$/.test(file) ? `${base}/img/${size}${file}` : `${IMG}${size}${file}`;
 
 const PAGE_SIZE = 100; // Stremio's catalog page size: fewer than 100 items = "end of catalog"
 const TMDB_PAGE = 20; // TMDB discover returns 20 per page, max page 500
@@ -670,13 +677,13 @@ async function imdbId(tmdbId, media = "movie") {
   } catch { return null; }
 }
 
-function toPreview(m, imdb, type = "movie") {
+function toPreview(m, imdb, type = "movie", base = "") {
   return {
     id: imdb || `tmdb:${m.id}`,
     type,
     name: m.title || m.name || m.original_title || m.original_name,
-    poster: m.poster_path ? `${IMG}w342${m.poster_path}` : undefined,
-    background: m.backdrop_path ? `${IMG}w1280${m.backdrop_path}` : undefined,
+    poster: img(base, "w342", m.poster_path),
+    background: img(base, "w1280", m.backdrop_path),
     description: m.overview || undefined,
     releaseInfo: (m.release_date || m.first_air_date || "").slice(0, 4) || undefined,
     imdbRating: m.vote_average ? m.vote_average.toFixed(1) : undefined,
@@ -719,14 +726,14 @@ async function catalogItems(def, skip = 0) {
   return items || (def.media === "tv" ? discoverSeries(def, skip, PAGE_SIZE) : discover(def, skip, PAGE_SIZE));
 }
 
-async function catalog(type, id, extra) {
+async function catalog(type, id, extra, base) {
   const def = (type === "series" ? SERIES : CATALOGS)[id];
   if (!def) return null;
   const skipRaw = Number(extra.get("skip") || 0);
   const skip = Number.isFinite(skipRaw) ? Math.max(0, Math.floor(skipRaw)) : 0;
   const items = await catalogItems(def, skip);
   const ids = await mapLimit(items, CONCURRENCY, (m) => imdbId(m.id, def.media));
-  return { metas: items.map((m, i) => toPreview(m, ids[i], type)) };
+  return { metas: items.map((m, i) => toPreview(m, ids[i], type, base)) };
 }
 
 // ---------- Nuvio collection ----------
@@ -777,7 +784,7 @@ function nuvioCollection(base) {
   }];
 }
 
-async function meta(id) {
+async function meta(id, base) {
   const d = await tmdb(`/movie/${id.replace(/^tmdb:/, "")}`, { language: LANG, append_to_response: "credits,videos" });
   const trailer = (d.videos?.results || []).find((v) => v.site === "YouTube" && v.type === "Trailer");
   const cast = (d.credits?.cast || []).slice(0, 6).map((c) => c.name);
@@ -787,8 +794,8 @@ async function meta(id) {
     meta: {
       id, type: "movie",
       name: d.title || d.original_title,
-      poster: d.poster_path ? `${IMG}w500${d.poster_path}` : undefined,
-      background: d.backdrop_path ? `${IMG}original${d.backdrop_path}` : undefined,
+      poster: img(base, "w500", d.poster_path),
+      background: img(base, "w1280", d.backdrop_path),
       description: d.overview || undefined,
       releaseInfo: (d.release_date || "").slice(0, 4) || undefined,
       released: d.release_date ? new Date(d.release_date).toISOString() : undefined,
@@ -809,7 +816,7 @@ async function meta(id) {
 }
 
 // Only for series without an IMDb id (Stremio gets the rest from Cinemeta). Episodes are "tmdb:<id>:<season>:<episode>".
-async function seriesMeta(id) {
+async function seriesMeta(id, base) {
   const tvId = id.replace(/^tmdb:/, "");
   const d = await tmdb(`/tv/${tvId}`, { language: LANG, append_to_response: "credits,videos,external_ids" });
   const seasonNums = (d.seasons || []).map((s) => s.season_number).filter((n) => n > 0);
@@ -822,7 +829,7 @@ async function seriesMeta(id) {
     season: ep.season_number, episode: ep.episode_number,
     released: ep.air_date ? new Date(ep.air_date).toISOString() : fallback,
     overview: ep.overview || undefined,
-    thumbnail: ep.still_path ? `${IMG}w300${ep.still_path}` : undefined,
+    thumbnail: img(base, "w300", ep.still_path),
   }));
   const trailer = (d.videos?.results || []).find((v) => v.site === "YouTube" && v.type === "Trailer");
   const cast = (d.credits?.cast || []).slice(0, 6).map((c) => c.name);
@@ -834,8 +841,8 @@ async function seriesMeta(id) {
     meta: {
       id, type: "series",
       name: d.name || d.original_name,
-      poster: d.poster_path ? `${IMG}w500${d.poster_path}` : undefined,
-      background: d.backdrop_path ? `${IMG}original${d.backdrop_path}` : undefined,
+      poster: img(base, "w500", d.poster_path),
+      background: img(base, "w1280", d.backdrop_path),
       description: d.overview || undefined,
       releaseInfo: d.first_air_date ? `${year(d.first_air_date)}–${d.in_production ? "" : year(d.last_air_date)}` : undefined,
       released: d.first_air_date ? new Date(d.first_air_date).toISOString() : undefined,
@@ -1690,6 +1697,10 @@ function send(res, status, body, cacheSeconds, type = "application/json; charset
   res.setHeader("Cache-Control", cacheSeconds
     ? `public, max-age=${Math.min(cacheSeconds, 3600)}, s-maxage=${cacheSeconds}, stale-while-revalidate=86400, stale-if-error=604800`
     : "no-store");
+  if (type.startsWith("text/html")) { // no other site may show these pages in a frame (the home page has a password box)
+    res.setHeader("Content-Security-Policy", "frame-ancestors 'none'");
+    res.setHeader("X-Frame-Options", "DENY");
+  }
   for (const [k, v] of Object.entries(headers)) res.setHeader(k, v);
   res.end(Buffer.isBuffer(body) || typeof body === "string" ? body : JSON.stringify(body, null, typeof body === "object" && body?.lists ? 2 : 0));
 }
@@ -1727,13 +1738,14 @@ export default async function handler(req, res) {
     }
     if (path === "/logo.png" || path === "/tfi-logo.png") return send(res, 200, Buffer.from(LOGO_PNG_BASE64, "base64"), 604800, "image/png");
 
-    // The home page's posters. Fetched from TMDB here and kept by Vercel for 30 days, so visitors' browsers never
-    // contact TMDB (Indian networks slow it down). Only a bare TMDB file name is accepted, and no API key is involved.
-    let pm = path.match(/^\/poster\/([A-Za-z0-9]{8,64}\.jpg)$/);
-    if (pm) {
-      const r = await fetch(`${IMG}w185/${pm[1]}`, { signal: AbortSignal.timeout(8000) }).catch(() => null);
+    // TMDB images: /img/<size>/<file> for the addon (see img()), /poster/<file> for the home page (w185). Fetched from
+    // TMDB here and kept by Vercel for 30 days, so browsers and apps never contact TMDB (Indian networks slow it down).
+    // Only the listed sizes and a bare TMDB file name are accepted, and no API key is involved.
+    let pm = path.match(/^\/(?:poster|img\/([a-z0-9]+))\/([A-Za-z0-9]{8,64}\.(jpg|png))$/);
+    if (pm && (!pm[1] || IMG_SIZES.includes(pm[1]))) {
+      const r = await fetch(`${IMG}${pm[1] || "w185"}/${pm[2]}`, { signal: AbortSignal.timeout(8000) }).catch(() => null);
       if (!r || !r.ok) return send(res, 404, { error: "not found" }, 0, undefined, { "Cache-Control": "public, max-age=60, s-maxage=60" });
-      return send(res, 200, Buffer.from(await r.arrayBuffer()), 0, "image/jpeg", { "Cache-Control": "public, max-age=2592000, s-maxage=2592000, immutable" });
+      return send(res, 200, Buffer.from(await r.arrayBuffer()), 0, pm[3] === "png" ? "image/png" : "image/jpeg", { "Cache-Control": "public, max-age=2592000, s-maxage=2592000, immutable" });
     }
     // The headings' typeface (Outfit Bold, the one on the Nuvio covers). Loaded only here: the font file is big.
     if (path === "/fonts/outfit-bold.ttf") {
@@ -1793,7 +1805,7 @@ export default async function handler(req, res) {
 
     m = path.match(/^\/catalog\/(movie|series)\/([^/]+?)(?:\/([^/]+))?\.json$/);
     if (m) {
-      const body = await catalog(m[1], decodeSeg(m[2]), new URLSearchParams(m[3] || ""));
+      const body = await catalog(m[1], decodeSeg(m[2]), new URLSearchParams(m[3] || ""), base);
       if (!body) return send(res, 404, { error: "unknown catalog", metas: [] }, 0);
       return send(res, 200, body, ttl);
     }
@@ -1801,7 +1813,7 @@ export default async function handler(req, res) {
     if (m) {
       const id = decodeSeg(m[2]);
       if (!/^tmdb:\d+$/.test(id)) return send(res, 404, { error: "unsupported id", meta: null }, 0);
-      return send(res, 200, m[1] === "series" ? await seriesMeta(id) : await meta(id), m[1] === "series" ? ttl : 86400);
+      return send(res, 200, m[1] === "series" ? await seriesMeta(id, base) : await meta(id, base), m[1] === "series" ? ttl : 86400);
     }
     return send(res, 404, { error: "not found" }, 0);
   } catch (err) {

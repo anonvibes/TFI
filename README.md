@@ -89,6 +89,7 @@ Set these in Vercel under **Settings → Environment Variables**, then redeploy.
 | `NEWS_CHECK` | `on` | `off` stops reading OTT release news |
 | `CRON_SECRET` | — | Recommended. When set, `/sync` and `/sync-series` only run for Vercel's scheduler or with `?key=<secret>` |
 | `META_LANGUAGE` | `en-US` | `te-IN` shows Telugu-script titles where TMDB has them |
+| `IMAGE_PROXY` | `on` | Posters, backgrounds and episode images come from this site (`/img/…`, kept by Vercel for 30 days), since Indian networks slow down TMDB. Uses Vercel bandwidth; `off` links straight to TMDB |
 | `AUDIO_URL` | tfi-data's `audio.json` | Results of the daily Telugu audio check |
 | `POOL_DAYS` | `365` | How far back the dubbed lists look for titles with Telugu audio |
 | `DUB_SOURCE_LANGS` | `ta\|ml\|kn` | Languages in "Telugu Dubbed: South" |
